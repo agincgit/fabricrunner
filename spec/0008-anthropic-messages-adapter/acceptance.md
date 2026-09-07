@@ -41,4 +41,7 @@ Local verification on 2026-09-07:
 | Secret-history scan | `gitleaks detect --redact` with v8.30.1 | Pass |
 | Repository reference scan | prohibited-reference scan excluding license and Git metadata | Pass |
 
-Published CI evidence is recorded after the reviewed change runs remotely.
+Published CI evidence:
+
+- [build and vulnerability scan](https://github.com/agincgit/fabricrunner/actions/runs/34105503321/job/101689459043): pass;
+- [gitleaks](https://github.com/agincgit/fabricrunner/actions/runs/34105503321/job/101689459456): pass.

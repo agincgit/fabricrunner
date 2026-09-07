@@ -16,4 +16,4 @@
   (FR-ANT-009 through FR-ANT-012).
 - [x] Add conformance and adversarial scripted-server tests
   (FR-ANT-014, FR-ANT-015).
-- [x] Capture local acceptance evidence. Published evidence is recorded after CI.
+- [x] Capture local and published acceptance evidence.

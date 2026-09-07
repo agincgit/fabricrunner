@@ -15,4 +15,4 @@
   (FR-OAI-010 through FR-OAI-013).
 - [x] Add shared conformance and adversarial scripted-server tests
   (FR-OAI-015, FR-OAI-016).
-- [ ] Capture local and published acceptance evidence.
+- [x] Capture local and published acceptance evidence.

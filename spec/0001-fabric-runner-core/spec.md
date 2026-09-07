@@ -6,7 +6,7 @@
 
 **Scope:** Open-source Fabric Runner
 
-**Baseline:** Go 1.25
+**Baseline:** Go 1.25.6
 
 Supporting execution records: [plan](plan.md), [tasks](tasks.md), and
 [acceptance](acceptance.md).

@@ -14,4 +14,4 @@
   FR-POL-008, FR-POL-009).
 - [x] Implement deterministic baseline behavior (FR-POL-010).
 - [x] Add contract, failure, cancellation, and isolation tests.
-- [ ] Capture local and published acceptance evidence.
+- [x] Capture local and published acceptance evidence.

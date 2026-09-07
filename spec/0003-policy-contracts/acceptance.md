@@ -2,7 +2,7 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** Pending
+**Status:** Accepted
 
 The implementation is accepted when:
 
@@ -40,4 +40,7 @@ The implementation is accepted when:
 | Vulnerability scan | `govulncheck ./...` | Pass (0 reachable vulnerabilities) |
 | Repository reference scan | prohibited-reference scan excluding license and Git metadata | Pass |
 
-Published CI evidence is pending.
+Published CI evidence:
+
+- [build](https://github.com/agincgit/fabricrunner/actions/runs/34094118252/job/101653762392): pass;
+- [gitleaks](https://github.com/agincgit/fabricrunner/actions/runs/34094118252/job/101653762673): pass.

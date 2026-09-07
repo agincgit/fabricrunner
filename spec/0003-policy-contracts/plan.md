@@ -2,7 +2,7 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** In Progress
+**Status:** Implemented
 
 ## Design
 

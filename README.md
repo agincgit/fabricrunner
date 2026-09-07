@@ -43,10 +43,11 @@ starting with the
 
 ## Scope
 
-This repository contains a standalone open-source product, not a thin SDK
+This repository contains a standalone public source-available product, not a thin SDK
 wrapper. Applications can extend it through public contracts for providers,
 policies, tools, routing, and telemetry.
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+FSL-1.1-MIT. Each published version converts to MIT on its second anniversary.
+See [LICENSE](LICENSE).

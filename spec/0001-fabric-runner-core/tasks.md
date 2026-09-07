@@ -25,7 +25,7 @@
 
 ## Phase 1: single-node vertical slice
 
-- [ ] Implement a SQLite WAL event store with transactional projections.
+- [x] Implement a SQLite WAL event store with transactional projections.
 - [ ] Define public execution-policy and data-egress-policy interfaces.
 - [ ] Implement the deterministic eligibility and routing contracts.
 - [ ] Implement the provider-neutral turn and tool loop.

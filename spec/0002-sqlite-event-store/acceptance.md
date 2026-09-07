@@ -2,7 +2,7 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** In Progress
+**Status:** Accepted
 
 The implementation is accepted when:
 
@@ -36,4 +36,4 @@ Local verification on 2026-09-07:
 | Static analysis | `go run honnef.co/go/tools/cmd/staticcheck@v0.6.1 ./...` | Pass |
 | Race and repeatability | `go test ./... -race -count=20` | Pass |
 | Vulnerability scan | `go run golang.org/x/vuln/cmd/govulncheck@latest ./...` using Go 1.25.6 | Pass; zero reachable vulnerabilities |
-| Published CI | Build and secret-scanning jobs | Pending |
+| Published CI | [Build and secret-scanning run](https://github.com/agincgit/fabricrunner/actions/runs/34092848259) | Pass |

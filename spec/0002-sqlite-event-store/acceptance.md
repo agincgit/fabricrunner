@@ -33,7 +33,7 @@ Local verification on 2026-09-07:
 | Formatting | `test -z "$(gofmt -l .)"` | Pass |
 | Build | `go build ./...` | Pass |
 | Vet | `go vet ./...` | Pass |
-| Static analysis | `staticcheck ./...` | Pass |
+| Static analysis | `go run honnef.co/go/tools/cmd/staticcheck@v0.6.1 ./...` | Pass |
 | Race and repeatability | `go test ./... -race -count=20` | Pass |
-| Vulnerability scan | `govulncheck ./...` with Go 1.25.6 or newer | Pending rerun |
+| Vulnerability scan | `go run golang.org/x/vuln/cmd/govulncheck@latest ./...` using Go 1.25.6 | Pass; zero reachable vulnerabilities |
 | Published CI | Build and secret-scanning jobs | Pending |

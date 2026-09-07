@@ -48,8 +48,8 @@ starting with the
 - provider-neutral model/tool turns with schemas, budgets, cancellation, and
   ordered parallel tools;
 - shared provider conformance tests; and
-- an OpenAI-compatible Chat Completions adapter for hosted or personal-network
-  endpoints.
+- OpenAI-compatible Chat Completions and Anthropic Messages adapters, both
+  exercised through the same provider-neutral loop.
 
 An OpenAI-compatible endpoint is configured explicitly. Plain HTTP is disabled
 unless the operator opts in for a trusted endpoint, such as a runtime on a
@@ -60,6 +60,20 @@ provider, err := openaicompat.New(openaicompat.Config{
     Name:              "home-models",
     BaseURL:           "http://127.0.0.1:11434/v1",
     AllowInsecureHTTP: true,
+})
+```
+
+Anthropic authentication is also supplied per request. Bearer and `x-api-key`
+headers are supported without storing the credential in the provider:
+
+```go
+provider, err := anthropic.New(anthropic.Config{
+    Name:    "anthropic",
+    BaseURL: "https://api.anthropic.com/v1",
+    AuthMode: anthropic.AuthAPIKey,
+    TokenSource: func(ctx context.Context) (string, error) {
+        return loadToken(ctx)
+    },
 })
 ```
 

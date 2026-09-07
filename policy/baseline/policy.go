@@ -33,8 +33,9 @@ func (Policy) EvaluateExecution(
 	if err != nil {
 		return fabricrunner.PolicyVerdict{}, err
 	}
+	scope := fabricrunner.PolicyScopeForExecution(request)
 	if classification == fabricrunner.ClassSecret {
-		return verdict(manifestDigest,
+		return verdict(manifestDigest, scope,
 			fabricrunner.PolicyDeny,
 			"execution.secret.denied",
 			"baseline policy does not grant execution access to secret content",
@@ -42,13 +43,13 @@ func (Policy) EvaluateExecution(
 	}
 	switch request.Target.Kind {
 	case fabricrunner.ExecutionTargetModel:
-		return verdict(manifestDigest,
+		return verdict(manifestDigest, scope,
 			fabricrunner.PolicyAllow,
 			"execution.model.eligible",
 			"model execution is eligible after content classification checks",
 		), nil
 	case fabricrunner.ExecutionTargetTool:
-		return verdict(manifestDigest,
+		return verdict(manifestDigest, scope,
 			fabricrunner.PolicyRequireApproval,
 			"execution.tool.approval",
 			"baseline policy requires approval for tool execution",
@@ -72,8 +73,9 @@ func (Policy) EvaluateDataEgress(
 	if err != nil {
 		return fabricrunner.PolicyVerdict{}, err
 	}
+	scope := fabricrunner.PolicyScopeForDataEgress(request)
 	if request.Source == request.Destination {
-		return verdict(manifestDigest,
+		return verdict(manifestDigest, scope,
 			fabricrunner.PolicyAllow,
 			"egress.same-zone",
 			"content remains within the same trust zone",
@@ -85,19 +87,19 @@ func (Policy) EvaluateDataEgress(
 	}
 	switch classification {
 	case fabricrunner.ClassPublic:
-		return verdict(manifestDigest,
+		return verdict(manifestDigest, scope,
 			fabricrunner.PolicyAllow,
 			"egress.public",
 			"public content may cross trust zones",
 		), nil
 	case fabricrunner.ClassInternal, fabricrunner.ClassConfidential:
-		return verdict(manifestDigest,
+		return verdict(manifestDigest, scope,
 			fabricrunner.PolicyRequireApproval,
 			"egress.approval",
 			"non-public content requires approval before crossing trust zones",
 		), nil
 	case fabricrunner.ClassSecret:
-		return verdict(manifestDigest,
+		return verdict(manifestDigest, scope,
 			fabricrunner.PolicyDeny,
 			"egress.secret.denied",
 			"secret content cannot cross trust zones under baseline policy",
@@ -109,6 +111,7 @@ func (Policy) EvaluateDataEgress(
 
 func verdict(
 	manifestDigest string,
+	scope fabricrunner.PolicyScope,
 	action fabricrunner.PolicyAction,
 	ruleID, reason string,
 ) fabricrunner.PolicyVerdict {
@@ -119,6 +122,7 @@ func verdict(
 		Action:         action,
 		Reason:         reason,
 		ManifestSHA256: manifestDigest,
+		Scope:          scope,
 	}
 }
 

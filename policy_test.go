@@ -149,13 +149,19 @@ func TestPolicyRequestValidation(t *testing.T) {
 func TestPolicyVerdictValidation(t *testing.T) {
 	t.Parallel()
 
+	request := validExecutionRequest(t)
+	manifestDigest, err := request.Manifest.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
 	valid := PolicyVerdict{
 		Policy:         "test",
 		PolicyVersion:  "1",
 		RuleID:         "rule.allow",
 		Action:         PolicyAllow,
 		Reason:         "allowed for test",
-		ManifestSHA256: strings.Repeat("a", 64),
+		ManifestSHA256: manifestDigest,
+		Scope:          PolicyScopeForExecution(request),
 	}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("Validate(valid) error = %v", err)
@@ -199,6 +205,7 @@ func TestEvaluateExecutionPolicyFailsClosedAndIsolatesInput(t *testing.T) {
 		if err != nil {
 			return PolicyVerdict{}, err
 		}
+		scope := PolicyScopeForExecution(received)
 		received.Manifest.Items[0].MediaType = "application/mutated"
 		received.Target.Model.Model = "mutated"
 		return PolicyVerdict{
@@ -208,6 +215,7 @@ func TestEvaluateExecutionPolicyFailsClosedAndIsolatesInput(t *testing.T) {
 			Action:         PolicyAllow,
 			Reason:         "valid test verdict",
 			ManifestSHA256: manifestDigest,
+			Scope:          scope,
 		}, nil
 	})
 	verdict, err := EvaluateExecutionPolicy(context.Background(), policy, request)
@@ -274,12 +282,43 @@ func TestEvaluatePolicyRejectsManifestMismatch(t *testing.T) {
 				Action:         PolicyAllow,
 				Reason:         "wrong manifest",
 				ManifestSHA256: strings.Repeat("b", 64),
+				Scope:          PolicyScopeForExecution(request),
 			}, nil
 		}),
 		request,
 	)
 	if !errors.Is(err, ErrPolicyEvaluation) || verdict.Action != PolicyDeny {
 		t.Fatalf("manifest mismatch did not fail closed: %#v, %v", verdict, err)
+	}
+}
+
+func TestEvaluatePolicyRejectsScopeMismatch(t *testing.T) {
+	t.Parallel()
+
+	request := validExecutionRequest(t)
+	verdict, err := EvaluateExecutionPolicy(
+		context.Background(),
+		executionPolicyFunc(func(_ context.Context, received ExecutionPolicyRequest) (PolicyVerdict, error) {
+			manifestDigest, digestErr := received.Manifest.Digest()
+			if digestErr != nil {
+				return PolicyVerdict{}, digestErr
+			}
+			scope := PolicyScopeForExecution(received)
+			scope.Target.Zone = ZonePersonal
+			return PolicyVerdict{
+				Policy:         "test",
+				PolicyVersion:  "1",
+				RuleID:         "test.allow",
+				Action:         PolicyAllow,
+				Reason:         "wrong execution scope",
+				ManifestSHA256: manifestDigest,
+				Scope:          scope,
+			}, nil
+		}),
+		request,
+	)
+	if !errors.Is(err, ErrPolicyEvaluation) || verdict.Action != PolicyDeny {
+		t.Fatalf("scope mismatch did not fail closed: %#v, %v", verdict, err)
 	}
 }
 
@@ -327,6 +366,7 @@ func TestEvaluateDataEgressPolicyIsolatesInput(t *testing.T) {
 				Action:         PolicyAllow,
 				Reason:         "valid test verdict",
 				ManifestSHA256: manifestDigest,
+				Scope:          PolicyScopeForDataEgress(received),
 			}, nil
 		}),
 		request,

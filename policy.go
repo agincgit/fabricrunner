@@ -300,6 +300,138 @@ func (action PolicyAction) Validate() error {
 	}
 }
 
+type PolicyScopeKind string
+
+const (
+	PolicyScopeExecution  PolicyScopeKind = "execution"
+	PolicyScopeDataEgress PolicyScopeKind = "data_egress"
+)
+
+// PolicyScope binds a verdict to one canonical execution target or data path.
+type PolicyScope struct {
+	Kind           PolicyScopeKind  `json:"kind"`
+	WorkloadID     ID               `json:"workload_id"`
+	StepID         ID               `json:"step_id"`
+	AttemptID      ID               `json:"attempt_id,omitempty"`
+	StepKind       StepKind         `json:"step_kind,omitempty"`
+	Autonomous     bool             `json:"autonomous,omitempty"`
+	Target         *ExecutionTarget `json:"target,omitempty"`
+	Source         Zone             `json:"source,omitempty"`
+	Destination    Zone             `json:"destination,omitempty"`
+	Purpose        string           `json:"purpose,omitempty"`
+	DerivedFromSHA string           `json:"derived_from_sha256,omitempty"`
+}
+
+func PolicyScopeForExecution(request ExecutionPolicyRequest) PolicyScope {
+	target := request.Target.clone()
+	return PolicyScope{
+		Kind:       PolicyScopeExecution,
+		WorkloadID: request.WorkloadID,
+		StepID:     request.StepID,
+		AttemptID:  request.AttemptID,
+		StepKind:   request.StepKind,
+		Autonomous: request.Autonomous,
+		Target:     &target,
+	}
+}
+
+func PolicyScopeForDataEgress(request DataEgressPolicyRequest) PolicyScope {
+	return PolicyScope{
+		Kind:           PolicyScopeDataEgress,
+		WorkloadID:     request.WorkloadID,
+		StepID:         request.StepID,
+		Source:         request.Source,
+		Destination:    request.Destination,
+		Purpose:        request.Purpose,
+		DerivedFromSHA: request.DerivedFromSHA,
+	}
+}
+
+func (scope PolicyScope) Validate() error {
+	if err := scope.WorkloadID.Validate(); err != nil {
+		return fmt.Errorf("policy scope workload ID: %w", err)
+	}
+	if err := scope.StepID.Validate(); err != nil {
+		return fmt.Errorf("policy scope step ID: %w", err)
+	}
+	switch scope.Kind {
+	case PolicyScopeExecution:
+		if err := scope.AttemptID.Validate(); err != nil {
+			return fmt.Errorf("policy scope attempt ID: %w", err)
+		}
+		if scope.Target == nil {
+			return errors.New("execution policy scope requires a target")
+		}
+		if err := scope.Target.Validate(); err != nil {
+			return fmt.Errorf("execution policy scope target: %w", err)
+		}
+		if err := scope.StepKind.Validate(); err != nil {
+			return fmt.Errorf("execution policy scope step kind: %w", err)
+		}
+		if (scope.StepKind == StepModelTurn && scope.Target.Kind != ExecutionTargetModel) ||
+			(scope.StepKind == StepTool && scope.Target.Kind != ExecutionTargetTool) ||
+			(scope.StepKind != StepModelTurn && scope.StepKind != StepTool) {
+			return errors.New("execution policy scope step and target kinds do not match")
+		}
+		if scope.Source != "" || scope.Destination != "" || scope.Purpose != "" || scope.DerivedFromSHA != "" {
+			return errors.New("execution policy scope cannot contain an egress path")
+		}
+	case PolicyScopeDataEgress:
+		if !scope.AttemptID.IsZero() || scope.StepKind != "" || scope.Autonomous || scope.Target != nil {
+			return errors.New("data-egress policy scope cannot contain execution fields")
+		}
+		if err := scope.Source.Validate(); err != nil {
+			return fmt.Errorf("policy scope source: %w", err)
+		}
+		if err := scope.Destination.Validate(); err != nil {
+			return fmt.Errorf("policy scope destination: %w", err)
+		}
+		if strings.TrimSpace(scope.Purpose) == "" {
+			return errors.New("data-egress policy scope purpose is required")
+		}
+		if scope.DerivedFromSHA != "" {
+			if err := validateSHA256("policy scope derived-from SHA-256", scope.DerivedFromSHA); err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("unknown policy scope kind %q", scope.Kind)
+	}
+	return nil
+}
+
+func (scope PolicyScope) Clone() PolicyScope {
+	if scope.Target != nil {
+		target := scope.Target.clone()
+		scope.Target = &target
+	}
+	return scope
+}
+
+func (scope PolicyScope) Equal(other PolicyScope) bool {
+	if scope.Kind != other.Kind || scope.WorkloadID != other.WorkloadID ||
+		scope.StepID != other.StepID || scope.AttemptID != other.AttemptID ||
+		scope.StepKind != other.StepKind || scope.Autonomous != other.Autonomous ||
+		scope.Source != other.Source || scope.Destination != other.Destination ||
+		scope.Purpose != other.Purpose || scope.DerivedFromSHA != other.DerivedFromSHA {
+		return false
+	}
+	if scope.Target == nil || other.Target == nil {
+		return scope.Target == nil && other.Target == nil
+	}
+	return executionTargetsEqual(*scope.Target, *other.Target)
+}
+
+func executionTargetsEqual(left, right ExecutionTarget) bool {
+	if left.Kind != right.Kind || left.Zone != right.Zone || left.ToolName != right.ToolName {
+		return false
+	}
+	if left.Model == nil || right.Model == nil {
+		return left.Model == nil && right.Model == nil
+	}
+	return *left.Model == *right.Model
+}
+
 // PolicyVerdict is a deterministic result ready to be recorded as an event.
 type PolicyVerdict struct {
 	Policy         string       `json:"policy"`
@@ -308,6 +440,7 @@ type PolicyVerdict struct {
 	Action         PolicyAction `json:"action"`
 	Reason         string       `json:"reason"`
 	ManifestSHA256 string       `json:"manifest_sha256,omitempty"`
+	Scope          PolicyScope  `json:"scope"`
 	Transformation string       `json:"transformation,omitempty"`
 }
 
@@ -330,6 +463,9 @@ func (verdict PolicyVerdict) Validate() error {
 	if err := validateSHA256("verdict manifest SHA-256", verdict.ManifestSHA256); err != nil {
 		return err
 	}
+	if err := verdict.Scope.Validate(); err != nil {
+		return err
+	}
 	requiresTransformation := verdict.Action == PolicyTransform || verdict.Action == PolicyRedact
 	if requiresTransformation && strings.TrimSpace(verdict.Transformation) == "" {
 		return errors.New("transform and redact verdicts require transformation instructions")
@@ -338,6 +474,11 @@ func (verdict PolicyVerdict) Validate() error {
 		return errors.New("transformation instructions require a transform or redact action")
 	}
 	return nil
+}
+
+func (verdict PolicyVerdict) Clone() PolicyVerdict {
+	verdict.Scope = verdict.Scope.Clone()
+	return verdict
 }
 
 func (verdict PolicyVerdict) Allows() bool {
@@ -369,31 +510,35 @@ func EvaluateExecutionPolicy(
 		return PolicyVerdict{}, err
 	}
 	manifestDigest := request.Manifest.digestUnchecked()
+	scope := PolicyScopeForExecution(request)
 	if err := request.Validate(); err != nil {
-		return failClosedVerdict("execution.request.invalid", manifestDigest), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
+		return failClosedVerdict("execution.request.invalid", manifestDigest, scope), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
 	}
 	classification, err := request.Manifest.EffectiveClassification()
 	if err != nil {
-		return failClosedVerdict("execution.manifest.invalid", manifestDigest), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
+		return failClosedVerdict("execution.manifest.invalid", manifestDigest, scope), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
 	}
 	if request.Target.Kind == ExecutionTargetModel && classification == ClassSecret {
-		return failClosedVerdict("execution.secret-model.denied", manifestDigest), nil
+		return failClosedVerdict("execution.secret-model.denied", manifestDigest, scope), nil
 	}
 	if policy == nil {
-		return failClosedVerdict("execution.policy.missing", manifestDigest), fmt.Errorf("%w: execution policy is nil", ErrPolicyEvaluation)
+		return failClosedVerdict("execution.policy.missing", manifestDigest, scope), fmt.Errorf("%w: execution policy is nil", ErrPolicyEvaluation)
 	}
 	verdict, err := policy.EvaluateExecution(ctx, request.Clone())
 	if contextError := ctx.Err(); contextError != nil {
 		return PolicyVerdict{}, contextError
 	}
 	if err != nil {
-		return failClosedVerdict("execution.policy.error", manifestDigest), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
+		return failClosedVerdict("execution.policy.error", manifestDigest, scope), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
 	}
 	if err := verdict.Validate(); err != nil {
-		return failClosedVerdict("execution.verdict.invalid", manifestDigest), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
+		return failClosedVerdict("execution.verdict.invalid", manifestDigest, scope), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
 	}
 	if verdict.ManifestSHA256 != "" && verdict.ManifestSHA256 != manifestDigest {
-		return failClosedVerdict("execution.verdict.manifest-mismatch", manifestDigest), fmt.Errorf("%w: verdict does not match evaluated manifest", ErrPolicyEvaluation)
+		return failClosedVerdict("execution.verdict.manifest-mismatch", manifestDigest, scope), fmt.Errorf("%w: verdict does not match evaluated manifest", ErrPolicyEvaluation)
+	}
+	if !verdict.Scope.Equal(scope) {
+		return failClosedVerdict("execution.verdict.scope-mismatch", manifestDigest, scope), fmt.Errorf("%w: verdict does not match execution scope", ErrPolicyEvaluation)
 	}
 	return verdict, nil
 }
@@ -409,29 +554,33 @@ func EvaluateDataEgressPolicy(
 		return PolicyVerdict{}, err
 	}
 	manifestDigest := request.Manifest.digestUnchecked()
+	scope := PolicyScopeForDataEgress(request)
 	if err := request.Validate(); err != nil {
-		return failClosedVerdict("egress.request.invalid", manifestDigest), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
+		return failClosedVerdict("egress.request.invalid", manifestDigest, scope), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
 	}
 	if policy == nil {
-		return failClosedVerdict("egress.policy.missing", manifestDigest), fmt.Errorf("%w: data egress policy is nil", ErrPolicyEvaluation)
+		return failClosedVerdict("egress.policy.missing", manifestDigest, scope), fmt.Errorf("%w: data egress policy is nil", ErrPolicyEvaluation)
 	}
 	verdict, err := policy.EvaluateDataEgress(ctx, request.Clone())
 	if contextError := ctx.Err(); contextError != nil {
 		return PolicyVerdict{}, contextError
 	}
 	if err != nil {
-		return failClosedVerdict("egress.policy.error", manifestDigest), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
+		return failClosedVerdict("egress.policy.error", manifestDigest, scope), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
 	}
 	if err := verdict.Validate(); err != nil {
-		return failClosedVerdict("egress.verdict.invalid", manifestDigest), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
+		return failClosedVerdict("egress.verdict.invalid", manifestDigest, scope), fmt.Errorf("%w: %w", ErrPolicyEvaluation, err)
 	}
 	if verdict.ManifestSHA256 != "" && verdict.ManifestSHA256 != manifestDigest {
-		return failClosedVerdict("egress.verdict.manifest-mismatch", manifestDigest), fmt.Errorf("%w: verdict does not match evaluated manifest", ErrPolicyEvaluation)
+		return failClosedVerdict("egress.verdict.manifest-mismatch", manifestDigest, scope), fmt.Errorf("%w: verdict does not match evaluated manifest", ErrPolicyEvaluation)
+	}
+	if !verdict.Scope.Equal(scope) {
+		return failClosedVerdict("egress.verdict.scope-mismatch", manifestDigest, scope), fmt.Errorf("%w: verdict does not match egress scope", ErrPolicyEvaluation)
 	}
 	return verdict, nil
 }
 
-func failClosedVerdict(ruleID, manifestDigest string) PolicyVerdict {
+func failClosedVerdict(ruleID, manifestDigest string, scope PolicyScope) PolicyVerdict {
 	return PolicyVerdict{
 		Policy:         "fabricrunner.fail-closed",
 		PolicyVersion:  "1",
@@ -439,6 +588,7 @@ func failClosedVerdict(ruleID, manifestDigest string) PolicyVerdict {
 		Action:         PolicyDeny,
 		Reason:         "policy evaluation did not produce a valid authorization",
 		ManifestSHA256: manifestDigest,
+		Scope:          scope.Clone(),
 	}
 }
 

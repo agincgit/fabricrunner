@@ -42,3 +42,4 @@ replacement.
 |---|---|---|
 | [0001](0001-fabric-runner-core/spec.md) | Fabric Runner core | In Progress |
 | [0002](0002-sqlite-event-store/spec.md) | SQLite event store | Implemented |
+| [0003](0003-policy-contracts/spec.md) | Policy contracts | In Progress |

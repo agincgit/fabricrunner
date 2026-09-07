@@ -35,10 +35,26 @@
 - [x] Implement the provider-neutral turn and tool loop.
 - [x] Add Anthropic Messages adapter and conformance tests.
 - [x] Add OpenAI-compatible adapter and conformance tests.
-- [ ] Add read, write, edit, and command tools.
-- [ ] Add macOS Seatbelt and Linux bubblewrap executors.
-- [ ] Add approval gates, budgets, cancellation, and cleanup.
-- [ ] Add context accounting and auditable compaction.
+- [ ] Reword the `SECURITY.md` sandbox sentence to state planned rather than
+  current behavior.
+- [ ] Document `ModelRequest.AutomaticCompaction` and `ModelEvent.Retryable` as
+  declared but not yet enforced, and assert in `providertest` that nothing
+  depends on either.
+- [ ] Tag `v0.1.0` once the two items above have landed.
+- [ ] Note the patched-toolchain requirement in the README so the `go` directive
+  is not mistaken for a misconfiguration.
+- [ ] Add the telemetry and audit contract
+  ([0009](../0009-telemetry-audit/spec.md)).
+- [ ] Add the execution engine that composes policy, routing, the event store,
+  and the loop ([0010](../0010-execution-engine/spec.md)).
+- [ ] Add read, write, edit, and command tools
+  ([0011](../0011-tool-suite/spec.md)).
+- [ ] Add macOS Seatbelt and Linux bubblewrap executors
+  ([0012](../0012-sandbox-executors/spec.md)).
+- [ ] Add approval gates, budgets, cancellation, and cleanup
+  ([0013](../0013-approval-budgets-lifecycle/spec.md)).
+- [ ] Add context accounting and auditable compaction
+  ([0014](../0014-context-compaction/spec.md)).
 - [ ] Pass the Phase 1 end-to-end acceptance scenario.
 
 ## Phase 2: distributed workers
@@ -60,3 +76,8 @@
 - [ ] Enforce workload, step, delegation, token, cost, call, and time budgets.
 - [ ] Add provider capability probes and compatibility reporting.
 - [ ] Pass the three-zone v1 acceptance suite.
+
+## Phase 4: evaluation
+
+- [ ] Add the eval harness runner, scoring interface, and report format
+  ([0015](../0015-eval-harness/spec.md)).

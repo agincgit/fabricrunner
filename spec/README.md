@@ -47,3 +47,4 @@ replacement.
 | [0005](0005-turn-tool-loop/spec.md) | Provider-neutral turn/tool loop | Implemented |
 | [0006](0006-provider-conformance/spec.md) | Provider adapter conformance | Implemented |
 | [0007](0007-openai-compatible-adapter/spec.md) | OpenAI-compatible adapter | Implemented |
+| [0008](0008-anthropic-messages-adapter/spec.md) | Anthropic Messages adapter | Implemented |

@@ -46,3 +46,4 @@ replacement.
 | [0004](0004-deterministic-routing/spec.md) | Deterministic routing | Implemented |
 | [0005](0005-turn-tool-loop/spec.md) | Provider-neutral turn/tool loop | Implemented |
 | [0006](0006-provider-conformance/spec.md) | Provider adapter conformance | Implemented |
+| [0007](0007-openai-compatible-adapter/spec.md) | OpenAI-compatible adapter | Implemented |

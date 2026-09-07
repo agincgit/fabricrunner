@@ -34,7 +34,7 @@
 - [x] Implement the deterministic eligibility and routing contracts.
 - [x] Implement the provider-neutral turn and tool loop.
 - [ ] Add Anthropic Messages adapter and conformance tests.
-- [ ] Add OpenAI-compatible adapter and conformance tests.
+- [x] Add OpenAI-compatible adapter and conformance tests.
 - [ ] Add read, write, edit, and command tools.
 - [ ] Add macOS Seatbelt and Linux bubblewrap executors.
 - [ ] Add approval gates, budgets, cancellation, and cleanup.

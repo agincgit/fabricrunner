@@ -21,7 +21,7 @@
 - [x] Add formatting, build, vet, race-test, and secret-scanning CI gates.
 - [x] Add aggregate projections and deterministic projection replay
   (FR-CORE-001 through FR-CORE-006).
-- [ ] Capture Phase 0 acceptance evidence.
+- [x] Capture Phase 0 acceptance evidence.
 
 ## Phase 1: single-node vertical slice
 

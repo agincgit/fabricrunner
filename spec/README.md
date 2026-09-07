@@ -41,3 +41,4 @@ replacement.
 | ID | Title | Status |
 |---|---|---|
 | [0001](0001-fabric-runner-core/spec.md) | Fabric Runner core | In Progress |
+| [0002](0002-sqlite-event-store/spec.md) | SQLite event store | In Progress |

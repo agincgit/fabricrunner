@@ -42,7 +42,7 @@ Local verification on 2026-09-07:
 | Static analysis | `staticcheck ./...` | Pass |
 | Race and repeatability | `go test ./... -race -count=20` | Pass |
 | Disclosure scan | Prohibited repository markers absent from the working tree | Pass |
-| Published CI | Build and secret-scanning jobs | Pending |
+| Published CI | [Build and secret-scanning run](https://github.com/agincgit/fabricrunner/actions/runs/34091300323) | Pass |
 
 ## Phase 1 gate
 

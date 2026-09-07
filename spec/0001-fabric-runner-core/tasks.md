@@ -32,7 +32,7 @@
 - [x] Implement a SQLite WAL event store with transactional projections.
 - [x] Define public execution-policy and data-egress-policy interfaces.
 - [x] Implement the deterministic eligibility and routing contracts.
-- [ ] Implement the provider-neutral turn and tool loop.
+- [x] Implement the provider-neutral turn and tool loop.
 - [ ] Add Anthropic Messages adapter and conformance tests.
 - [ ] Add OpenAI-compatible adapter and conformance tests.
 - [ ] Add read, write, edit, and command tools.

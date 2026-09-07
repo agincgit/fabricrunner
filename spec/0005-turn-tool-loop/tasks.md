@@ -17,4 +17,4 @@
   (FR-LOOP-009, FR-LOOP-011 through FR-LOOP-013).
 - [x] Add contract, stream, schema, ordering, failure, budget, cancellation,
   panic, cleanup, and isolation tests.
-- [ ] Capture local and published acceptance evidence.
+- [x] Capture local and published acceptance evidence.

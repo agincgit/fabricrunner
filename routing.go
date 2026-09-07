@@ -89,11 +89,8 @@ func (candidate RoutingCandidate) Validate() error {
 	if err := candidate.Zone.Validate(); err != nil {
 		return fmt.Errorf("candidate zone: %w", err)
 	}
-	if err := candidate.Model.Ref.Validate(); err != nil {
+	if err := candidate.Model.Validate(); err != nil {
 		return fmt.Errorf("candidate model: %w", err)
-	}
-	if err := validateModelCapabilities(candidate.Model.Capabilities); err != nil {
-		return fmt.Errorf("candidate model capabilities: %w", err)
 	}
 	if err := validateStringSet("candidate available tool", candidate.AvailableTools); err != nil {
 		return err
@@ -126,16 +123,7 @@ func (candidate RoutingCandidate) Validate() error {
 }
 
 func (candidate RoutingCandidate) Clone() RoutingCandidate {
-	candidate.Model.Capabilities.Modalities = append(
-		[]string(nil), candidate.Model.Capabilities.Modalities...,
-	)
-	if candidate.Model.Labels != nil {
-		labels := make(map[string]string, len(candidate.Model.Labels))
-		for key, value := range candidate.Model.Labels {
-			labels[key] = value
-		}
-		candidate.Model.Labels = labels
-	}
+	candidate.Model = candidate.Model.Clone()
 	candidate.AvailableTools = append([]string(nil), candidate.AvailableTools...)
 	candidate.ExecutionVerdict = candidate.ExecutionVerdict.Clone()
 	if candidate.EgressVerdict != nil {
@@ -655,21 +643,6 @@ func EvaluateRouter(
 		return RoutingDecision{}, fmt.Errorf("%w: successful route omitted a selection", ErrRoutingEvaluation)
 	}
 	return decision, nil
-}
-
-func validateModelCapabilities(capabilities ModelCapabilities) error {
-	if capabilities.ContextTokens < 0 || capabilities.MaxOutputTokens < 0 {
-		return errors.New("model token capabilities cannot be negative")
-	}
-	if err := validateStringSet("model modality", capabilities.Modalities); err != nil {
-		return err
-	}
-	switch capabilities.ToolUse {
-	case ToolUseNone, ToolUseNative, ToolUseConstrained, ToolUseParsed:
-		return nil
-	default:
-		return fmt.Errorf("unknown model tool-use mode %q", capabilities.ToolUse)
-	}
 }
 
 func validateStringSet(name string, values []string) error {

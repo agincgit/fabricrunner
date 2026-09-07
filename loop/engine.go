@@ -32,11 +32,10 @@ type toolExecution struct {
 }
 
 type turnData struct {
-	text      strings.Builder
-	calls     []fabricrunner.ToolCall
-	stop      fabricrunner.StopReason
-	modelErr  *fabricrunner.ModelError
-	lastEvent uint64
+	text     strings.Builder
+	calls    []fabricrunner.ToolCall
+	stop     fabricrunner.StopReason
+	modelErr *fabricrunner.ModelError
 }
 
 func (Engine) Run(
@@ -224,15 +223,15 @@ func consumeTurn(
 	defer func() {
 		returnErr = errors.Join(returnErr, stream.Close())
 	}()
-	terminal := false
+	validator := fabricrunner.ModelStreamValidator{}
 	for {
 		if err := contextResult(loopCtx, parentCtx, result); err != nil {
 			return data, err
 		}
 		event, err := stream.Recv(loopCtx)
 		if errors.Is(err, io.EOF) {
-			if !terminal {
-				return data, fmt.Errorf("%w: stream ended without a terminal event", fabricrunner.ErrLoopStream)
+			if err := validator.Complete(); err != nil {
+				return data, fmt.Errorf("%w: %w", fabricrunner.ErrLoopStream, err)
 			}
 			return data, nil
 		}
@@ -242,16 +241,9 @@ func consumeTurn(
 			}
 			return data, err
 		}
-		if terminal {
-			return data, fmt.Errorf("%w: event followed terminal event", fabricrunner.ErrLoopStream)
-		}
-		if err := event.Validate(); err != nil {
+		if err := validator.Accept(event); err != nil {
 			return data, fmt.Errorf("%w: %w", fabricrunner.ErrLoopStream, err)
 		}
-		if event.Sequence != data.lastEvent+1 {
-			return data, fmt.Errorf("%w: sequence %d followed %d", fabricrunner.ErrLoopStream, event.Sequence, data.lastEvent)
-		}
-		data.lastEvent = event.Sequence
 		if err := emitter.emit(loopCtx, fabricrunner.LoopEvent{
 			Type: fabricrunner.LoopEventModel, Turn: turn, Model: model, ModelEvent: &event,
 		}); err != nil {
@@ -272,11 +264,9 @@ func consumeTurn(
 			}
 		case fabricrunner.ModelEventStop:
 			data.stop = event.Stop
-			terminal = true
 		case fabricrunner.ModelEventError:
 			modelError := *event.Error
 			data.modelErr = &modelError
-			terminal = true
 		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 type MessageRole string
@@ -16,6 +17,15 @@ const (
 	RoleAssistant MessageRole = "assistant"
 	RoleTool      MessageRole = "tool"
 )
+
+func (mode ToolUseMode) Validate() error {
+	switch mode {
+	case ToolUseNone, ToolUseNative, ToolUseConstrained, ToolUseParsed:
+		return nil
+	default:
+		return fmt.Errorf("unknown tool-use mode %q", mode)
+	}
+}
 
 type ContentType string
 
@@ -125,11 +135,11 @@ type ModelRef struct {
 }
 
 func (r ModelRef) Validate() error {
-	if r.Provider == "" {
-		return errors.New("provider is required")
+	if strings.TrimSpace(r.Provider) == "" || r.Provider != strings.TrimSpace(r.Provider) {
+		return errors.New("provider is required without surrounding whitespace")
 	}
-	if r.Model == "" {
-		return errors.New("model is required")
+	if strings.TrimSpace(r.Model) == "" || r.Model != strings.TrimSpace(r.Model) {
+		return errors.New("model is required without surrounding whitespace")
 	}
 	return nil
 }
@@ -236,10 +246,62 @@ type ModelCapabilities struct {
 	ReasoningSummaries    bool
 }
 
+func (capabilities ModelCapabilities) Validate() error {
+	if capabilities.ContextTokens < 0 {
+		return errors.New("context tokens cannot be negative")
+	}
+	if capabilities.MaxOutputTokens < 0 {
+		return errors.New("maximum output tokens cannot be negative")
+	}
+	if capabilities.ContextTokens > 0 && capabilities.MaxOutputTokens > capabilities.ContextTokens {
+		return errors.New("maximum output tokens cannot exceed context tokens")
+	}
+	if err := capabilities.ToolUse.Validate(); err != nil {
+		return err
+	}
+	if capabilities.ToolUse == ToolUseNone && (capabilities.ParallelToolCalls ||
+		capabilities.StrictToolSchemas || capabilities.DynamicTools ||
+		capabilities.MultimodalToolResults) {
+		return errors.New("tool capabilities require a tool-use mode")
+	}
+	seenModalities := make(map[string]struct{}, len(capabilities.Modalities))
+	for index, modality := range capabilities.Modalities {
+		if strings.TrimSpace(modality) == "" || modality != strings.TrimSpace(modality) {
+			return fmt.Errorf("modality %d is empty or has surrounding whitespace", index)
+		}
+		if _, exists := seenModalities[modality]; exists {
+			return fmt.Errorf("modality %d duplicates %q", index, modality)
+		}
+		seenModalities[modality] = struct{}{}
+	}
+	return nil
+}
+
 type ModelDescriptor struct {
 	Ref          ModelRef
 	Capabilities ModelCapabilities
 	Labels       map[string]string
+}
+
+func (descriptor ModelDescriptor) Validate() error {
+	if err := descriptor.Ref.Validate(); err != nil {
+		return err
+	}
+	if err := descriptor.Capabilities.Validate(); err != nil {
+		return fmt.Errorf("model capabilities: %w", err)
+	}
+	for key := range descriptor.Labels {
+		if strings.TrimSpace(key) == "" || key != strings.TrimSpace(key) {
+			return errors.New("model label key is empty or has surrounding whitespace")
+		}
+	}
+	return nil
+}
+
+func (descriptor ModelDescriptor) Clone() ModelDescriptor {
+	descriptor.Capabilities.Modalities = append([]string(nil), descriptor.Capabilities.Modalities...)
+	descriptor.Labels = cloneStringMap(descriptor.Labels)
+	return descriptor
 }
 
 type ModelEventType string
@@ -258,6 +320,29 @@ type ToolCall struct {
 	ID    string
 	Name  string
 	Input json.RawMessage
+}
+
+type ToolCallDelta struct {
+	Index         int
+	ID            string
+	Name          string
+	InputFragment string
+}
+
+func (delta ToolCallDelta) Validate() error {
+	if delta.Index < 0 {
+		return errors.New("tool-call delta index cannot be negative")
+	}
+	if delta.ID == "" && delta.Name == "" && delta.InputFragment == "" {
+		return errors.New("tool-call delta requires an ID, name, or input fragment")
+	}
+	if delta.ID != "" && (strings.TrimSpace(delta.ID) == "" || delta.ID != strings.TrimSpace(delta.ID)) {
+		return errors.New("tool-call delta ID has invalid whitespace")
+	}
+	if delta.Name != "" && (strings.TrimSpace(delta.Name) == "" || delta.Name != strings.TrimSpace(delta.Name)) {
+		return errors.New("tool-call delta name has invalid whitespace")
+	}
+	return nil
 }
 
 type Usage struct {
@@ -304,14 +389,15 @@ type ModelError struct {
 }
 
 type ModelEvent struct {
-	Type      ModelEventType
-	Sequence  uint64
-	Text      string
-	ToolCall  *ToolCall
-	Usage     *Usage
-	Stop      StopReason
-	Error     *ModelError
-	Extension map[string]json.RawMessage
+	Type          ModelEventType
+	Sequence      uint64
+	Text          string
+	ToolCallDelta *ToolCallDelta
+	ToolCall      *ToolCall
+	Usage         *Usage
+	Stop          StopReason
+	Error         *ModelError
+	Extension     map[string]json.RawMessage
 }
 
 func (e ModelEvent) Validate() error {
@@ -319,29 +405,100 @@ func (e ModelEvent) Validate() error {
 		return errors.New("model event sequence must be positive")
 	}
 	switch e.Type {
-	case ModelEventStart, ModelEventTextDelta, ModelEventToolCallDelta:
-		return nil
+	case ModelEventStart:
+		return e.validatePayload(false, false, false, false, false)
+	case ModelEventTextDelta:
+		if e.Text == "" {
+			return errors.New("text delta is empty")
+		}
+		return e.validatePayload(true, false, false, false, false)
+	case ModelEventToolCallDelta:
+		if e.ToolCallDelta == nil {
+			return errors.New("tool-call delta event requires a delta")
+		}
+		if err := e.ToolCallDelta.Validate(); err != nil {
+			return err
+		}
+		return e.validatePayload(false, true, false, false, false)
 	case ModelEventUsage:
 		if e.Usage == nil {
 			return errors.New("usage event requires usage")
 		}
-		return e.Usage.Validate()
+		if err := e.Usage.Validate(); err != nil {
+			return err
+		}
+		return e.validatePayload(false, false, false, true, false)
 	case ModelEventToolCall:
-		if e.ToolCall == nil || e.ToolCall.ID == "" || e.ToolCall.Name == "" ||
+		if e.ToolCall == nil || strings.TrimSpace(e.ToolCall.ID) == "" ||
+			e.ToolCall.ID != strings.TrimSpace(e.ToolCall.ID) || strings.TrimSpace(e.ToolCall.Name) == "" ||
+			e.ToolCall.Name != strings.TrimSpace(e.ToolCall.Name) ||
 			len(e.ToolCall.Input) == 0 || !json.Valid(e.ToolCall.Input) {
 			return errors.New("completed tool-call event is invalid")
 		}
-		return nil
+		return e.validatePayload(false, false, true, false, false)
 	case ModelEventStop:
-		return e.Stop.Validate()
-	case ModelEventError:
-		if e.Error == nil || e.Error.Code == "" {
-			return errors.New("error event requires an error code")
+		if err := e.Stop.Validate(); err != nil {
+			return err
 		}
-		return nil
+		return e.validatePayload(false, false, false, false, true)
+	case ModelEventError:
+		if e.Error == nil || strings.TrimSpace(e.Error.Code) == "" ||
+			e.Error.Code != strings.TrimSpace(e.Error.Code) || strings.TrimSpace(e.Error.Message) == "" {
+			return errors.New("error event requires a code and message")
+		}
+		return e.validatePayload(false, false, false, false, false)
 	default:
 		return fmt.Errorf("unknown model event type %q", e.Type)
 	}
+}
+
+func (e ModelEvent) validatePayload(text, delta, call, usage, stop bool) error {
+	if !text && e.Text != "" {
+		return fmt.Errorf("model event %q contains text payload", e.Type)
+	}
+	if !delta && e.ToolCallDelta != nil {
+		return fmt.Errorf("model event %q contains tool-call delta payload", e.Type)
+	}
+	if !call && e.ToolCall != nil {
+		return fmt.Errorf("model event %q contains completed tool-call payload", e.Type)
+	}
+	if !usage && e.Usage != nil {
+		return fmt.Errorf("model event %q contains usage payload", e.Type)
+	}
+	if !stop && e.Stop != "" {
+		return fmt.Errorf("model event %q contains stop payload", e.Type)
+	}
+	if e.Type != ModelEventError && e.Error != nil {
+		return fmt.Errorf("model event %q contains error payload", e.Type)
+	}
+	return nil
+}
+
+func (e ModelEvent) Clone() ModelEvent {
+	if e.ToolCallDelta != nil {
+		delta := *e.ToolCallDelta
+		e.ToolCallDelta = &delta
+	}
+	if e.ToolCall != nil {
+		call := cloneToolCall(*e.ToolCall)
+		e.ToolCall = &call
+	}
+	if e.Usage != nil {
+		usage := *e.Usage
+		e.Usage = &usage
+	}
+	if e.Error != nil {
+		modelError := *e.Error
+		e.Error = &modelError
+	}
+	if e.Extension != nil {
+		extension := make(map[string]json.RawMessage, len(e.Extension))
+		for key, value := range e.Extension {
+			extension[key] = append(json.RawMessage(nil), value...)
+		}
+		e.Extension = extension
+	}
+	return e
 }
 
 // ModelStream emits ordered events and ends with io.EOF after one terminal
@@ -361,37 +518,32 @@ type Provider interface {
 
 // DrainStream consumes a stream while preserving terminal-event validation.
 // It is primarily useful to adapter conformance tests and non-streaming clients.
-func DrainStream(ctx context.Context, stream ModelStream) ([]ModelEvent, error) {
+func DrainStream(ctx context.Context, stream ModelStream) (events []ModelEvent, returnErr error) {
 	if stream == nil {
 		return nil, errors.New("model stream is nil")
 	}
-	defer stream.Close()
+	defer func() {
+		returnErr = errors.Join(returnErr, stream.Close())
+	}()
 
-	var events []ModelEvent
-	var lastSequence uint64
-	terminal := false
+	validator := ModelStreamValidator{}
 	for {
 		event, err := stream.Recv(ctx)
 		if errors.Is(err, io.EOF) {
-			if !terminal {
-				return nil, errors.New("model stream ended without a terminal event")
+			if err := validator.Complete(); err != nil {
+				return events, err
 			}
 			return events, nil
 		}
 		if err != nil {
-			return nil, err
+			if ctx.Err() != nil {
+				return events, ctx.Err()
+			}
+			return events, err
 		}
-		if terminal {
-			return nil, errors.New("model stream emitted an event after its terminal event")
+		if err := validator.Accept(event); err != nil {
+			return events, err
 		}
-		if err := event.Validate(); err != nil {
-			return nil, fmt.Errorf("invalid model event: %w", err)
-		}
-		if event.Sequence != lastSequence+1 {
-			return nil, fmt.Errorf("model stream sequence %d followed %d", event.Sequence, lastSequence)
-		}
-		lastSequence = event.Sequence
-		events = append(events, event)
-		terminal = event.Type == ModelEventStop || event.Type == ModelEventError
+		events = append(events, event.Clone())
 	}
 }

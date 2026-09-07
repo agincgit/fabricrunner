@@ -17,4 +17,4 @@
 - [x] Return auditable no-route decisions (FR-ROUTE-008).
 - [x] Add validation, policy, eligibility, scoring, isolation, and cancellation
   tests.
-- [ ] Capture local and published acceptance evidence.
+- [x] Capture local and published acceptance evidence.

@@ -45,3 +45,6 @@ Published CI evidence:
 
 - [build](https://github.com/agincgit/fabricrunner/actions/runs/34094118252/job/101653762392): pass;
 - [gitleaks](https://github.com/agincgit/fabricrunner/actions/runs/34094118252/job/101653762673): pass.
+
+The typed policy-scope extension is covered by
+[deterministic-routing CI](https://github.com/agincgit/fabricrunner/actions/runs/34096099977/job/101660000283).

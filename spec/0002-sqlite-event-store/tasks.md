@@ -16,4 +16,4 @@
 - [x] Persist workload projections in the append transaction (FR-SQL-003 and
   FR-SQL-009).
 - [x] Add restart, concurrency, rollback, corruption, and cancellation tests.
-- [ ] Capture local and published acceptance evidence.
+- [x] Capture local and published acceptance evidence.

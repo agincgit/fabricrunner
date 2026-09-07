@@ -85,5 +85,10 @@ policies, tools, routing, and telemetry.
 
 ## License
 
-FSL-1.1-MIT. Each published version converts to MIT on its second anniversary.
-See [LICENSE](LICENSE).
+Fabric Runner is Fair Source under `FSL-1.1-MIT`. Each published version
+irrevocably becomes MIT-licensed on its second anniversary. Versions that have
+not reached that date are source-available and are not represented as Open
+Source.
+
+See [LICENSE](LICENSE), [licensing policy](LICENSING.md), and
+[release record](RELEASES.md).

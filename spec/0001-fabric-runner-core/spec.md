@@ -245,6 +245,17 @@ must not contact a provider or execute a tool.
 - **FR-CORE-008:** Every published version is licensed under FSL-1.1-MIT and
   receives its irrevocable MIT license on the second anniversary of that
   version's publication.
+- **FR-CORE-009:** Project materials describe versions that have not reached
+  their future-license date as Fair Source or source-available, not as Open
+  Source. Published tags and releases record their publication date and
+  resulting MIT effective date.
+- **FR-CORE-010:** Intentional contributions are licensed inbound under the
+  same FSL-1.1-MIT terms, including the irrevocable future MIT grant, without
+  assigning the contributor's copyright.
+- **FR-CORE-011:** Before v1.0, the project records an explicit license review
+  covering continued FSL-1.1-MIT use, FSL-1.1-ALv2 patent terms, and immediate
+  use of an OSI-approved license. No review changes an already-published
+  version's irrevocable future license.
 
 ## Sandboxing
 

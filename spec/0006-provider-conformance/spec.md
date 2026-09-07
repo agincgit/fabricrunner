@@ -2,7 +2,7 @@
 
 **ID:** 0006
 
-**Status:** In Progress
+**Status:** Implemented
 
 **Depends on:** [Fabric Runner core](../0001-fabric-runner-core/spec.md),
 [Provider-neutral turn and tool loop](../0005-turn-tool-loop/spec.md)

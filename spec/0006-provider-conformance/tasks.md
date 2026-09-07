@@ -17,4 +17,4 @@
   (FR-PROVIDER-008 through FR-PROVIDER-010).
 - [x] Add protocol, discovery, isolation, cancellation, cleanup, and suite
   tests.
-- [ ] Capture local and published acceptance evidence.
+- [x] Capture local and published acceptance evidence.

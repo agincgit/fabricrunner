@@ -2,7 +2,7 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** Pending
+**Status:** Accepted
 
 The implementation is accepted when:
 
@@ -44,4 +44,7 @@ Local verification on 2026-09-07:
 | Secret-history scan | `gitleaks detect --redact` with v8.30.1 | Pass |
 | Repository reference scan | prohibited-reference scan excluding license and Git metadata | Pass |
 
-Published CI evidence is pending.
+Published CI evidence:
+
+- [build and vulnerability scan](https://github.com/agincgit/fabricrunner/actions/runs/34100416088/job/101673335211): pass;
+- [gitleaks](https://github.com/agincgit/fabricrunner/actions/runs/34100416088/job/101673334981): pass.

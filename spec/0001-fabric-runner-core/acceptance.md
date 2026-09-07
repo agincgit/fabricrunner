@@ -29,6 +29,10 @@ The canonical foundation is accepted when all of the following hold:
 - A model stream preserves event order and terminates exactly once with stop or
   error.
 - Repository formatting, build, vet, race-test, and secret-scanning checks pass.
+- Builds use the specified patched Go release and vulnerability scanning finds
+  no reachable known vulnerability (FR-CORE-007).
+- Repository licensing identifies FSL-1.1-MIT and its per-version two-year MIT
+  conversion (FR-CORE-008).
 
 ### Phase 0 evidence
 

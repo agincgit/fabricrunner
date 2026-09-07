@@ -21,6 +21,10 @@
 - [x] Add formatting, build, vet, race-test, and secret-scanning CI gates.
 - [x] Add aggregate projections and deterministic projection replay
   (FR-CORE-001 through FR-CORE-006).
+- [x] Require a patched Go toolchain and a zero-reachable-vulnerability release
+  gate (FR-CORE-007).
+- [x] Apply FSL-1.1-MIT with the per-version two-year MIT conversion
+  (FR-CORE-008).
 - [x] Capture Phase 0 acceptance evidence.
 
 ## Phase 1: single-node vertical slice
@@ -28,7 +32,7 @@
 - [x] Implement a SQLite WAL event store with transactional projections.
 - [x] Define public execution-policy and data-egress-policy interfaces.
 - [x] Implement the deterministic eligibility and routing contracts.
-- [ ] Implement the provider-neutral turn and tool loop.
+- [x] Implement the provider-neutral turn and tool loop.
 - [ ] Add Anthropic Messages adapter and conformance tests.
 - [ ] Add OpenAI-compatible adapter and conformance tests.
 - [ ] Add read, write, edit, and command tools.

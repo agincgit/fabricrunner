@@ -89,6 +89,9 @@ func (p ContentPart) Validate() error {
 		if p.ToolCallID == "" {
 			return errors.New("tool result call ID is required")
 		}
+		if len(p.JSON) > 0 && !json.Valid(p.JSON) {
+			return errors.New("tool result JSON must be valid")
+		}
 		return nil
 	default:
 		return fmt.Errorf("unknown content type %q", p.Type)
@@ -193,6 +196,11 @@ func (r ModelRequest) Validate() error {
 	if r.ToolChoice.Mode == ToolChoiceNamed && r.ToolChoice.Name == "" {
 		return errors.New("named tool choice requires a name")
 	}
+	switch r.ToolChoice.Mode {
+	case ToolChoiceAuto, ToolChoiceNone, ToolChoiceRequired, ToolChoiceNamed:
+	default:
+		return fmt.Errorf("unknown tool choice mode %q", r.ToolChoice.Mode)
+	}
 	if r.ToolChoice.Mode == ToolChoiceNamed {
 		if _, exists := toolNames[r.ToolChoice.Name]; !exists {
 			return fmt.Errorf("named tool choice %q is not defined", r.ToolChoice.Name)
@@ -260,6 +268,14 @@ type Usage struct {
 	Cost             CostMicros
 }
 
+func (usage Usage) Validate() error {
+	if usage.InputTokens < 0 || usage.OutputTokens < 0 || usage.CacheReadTokens < 0 ||
+		usage.CacheWriteTokens < 0 || usage.Cost < 0 {
+		return errors.New("usage values cannot be negative")
+	}
+	return nil
+}
+
 type StopReason string
 
 const (
@@ -270,6 +286,15 @@ const (
 	StopCancelled StopReason = "cancelled"
 	StopUnknown   StopReason = "unknown"
 )
+
+func (reason StopReason) Validate() error {
+	switch reason {
+	case StopEndTurn, StopToolUse, StopMaxTokens, StopRefusal, StopCancelled, StopUnknown:
+		return nil
+	default:
+		return fmt.Errorf("unknown stop reason %q", reason)
+	}
+}
 
 type ModelError struct {
 	Code          string
@@ -294,8 +319,13 @@ func (e ModelEvent) Validate() error {
 		return errors.New("model event sequence must be positive")
 	}
 	switch e.Type {
-	case ModelEventStart, ModelEventTextDelta, ModelEventToolCallDelta, ModelEventUsage:
+	case ModelEventStart, ModelEventTextDelta, ModelEventToolCallDelta:
 		return nil
+	case ModelEventUsage:
+		if e.Usage == nil {
+			return errors.New("usage event requires usage")
+		}
+		return e.Usage.Validate()
 	case ModelEventToolCall:
 		if e.ToolCall == nil || e.ToolCall.ID == "" || e.ToolCall.Name == "" ||
 			len(e.ToolCall.Input) == 0 || !json.Valid(e.ToolCall.Input) {
@@ -303,10 +333,7 @@ func (e ModelEvent) Validate() error {
 		}
 		return nil
 	case ModelEventStop:
-		if e.Stop == "" {
-			return errors.New("stop event requires a reason")
-		}
-		return nil
+		return e.Stop.Validate()
 	case ModelEventError:
 		if e.Error == nil || e.Error.Code == "" {
 			return errors.New("error event requires an error code")

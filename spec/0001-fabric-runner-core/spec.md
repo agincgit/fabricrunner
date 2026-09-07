@@ -4,9 +4,9 @@
 
 **Status:** In Progress
 
-**Scope:** Open-source Fabric Runner
+**Scope:** Public source-available Fabric Runner
 
-**Baseline:** Go 1.25.6
+**Baseline:** Go 1.25.13
 
 Supporting execution records: [plan](plan.md), [tasks](tasks.md), and
 [acceptance](acceptance.md).
@@ -239,6 +239,12 @@ must not contact a provider or execute a tool.
   creation, and trailing or unknown payload fields fail closed.
 - **FR-CORE-006:** Projection replay performs no provider, tool, network, or
   other external execution.
+- **FR-CORE-007:** Builds and published CI use Go 1.25.13 or newer within the
+  Go 1.25 release line, and the release gate permits no reachable known
+  vulnerability.
+- **FR-CORE-008:** Every published version is licensed under FSL-1.1-MIT and
+  receives its irrevocable MIT license on the second anniversary of that
+  version's publication.
 
 ## Sandboxing
 

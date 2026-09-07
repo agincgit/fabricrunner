@@ -44,3 +44,4 @@ replacement.
 | [0002](0002-sqlite-event-store/spec.md) | SQLite event store | Implemented |
 | [0003](0003-policy-contracts/spec.md) | Policy contracts | Implemented |
 | [0004](0004-deterministic-routing/spec.md) | Deterministic routing | Implemented |
+| [0005](0005-turn-tool-loop/spec.md) | Provider-neutral turn/tool loop | Implemented |

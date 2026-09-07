@@ -31,7 +31,9 @@ provider SDK or application policy pack.
   an operator; the baseline policy does not grant it.
 - **FR-POL-005:** Verdicts carry a policy name, policy version, stable rule ID,
   action, human-readable reason, and the SHA-256 digest of the exact manifest
-  evaluated, suitable for an append-only decision event.
+  evaluated. They also bind the workload and step plus either the exact
+  execution attempt and target or the exact egress source and destination,
+  suitable for an append-only decision event.
 - **FR-POL-006:** Approval and sandboxing are independent. An approval verdict
   does not assert that a sandbox is present, and sandbox availability is not an
   input to policy authorization.
@@ -58,9 +60,12 @@ Both return a canonical `PolicyVerdict`. The workload engine persists the
 verdict before dispatch or transfer. The interfaces do not execute approvals,
 transformations, tools, or network requests.
 
-Every verdict is bound to `ContentManifest.Digest()`. The digest uses a
-domain-separated, length-prefixed canonical encoding and preserves manifest
-item order. A verdict with a missing or mismatched manifest digest fails closed.
+Every verdict is bound to `ContentManifest.Digest()` and a typed `PolicyScope`.
+The digest uses a domain-separated, length-prefixed canonical encoding and
+preserves manifest item order. The scope prevents a verdict for one workload,
+step kind, autonomous mode, attempt, target, egress purpose, provenance digest,
+or data path from being reused for another. A verdict with a missing or
+mismatched manifest digest or scope fails closed.
 
 ## Classification ordering
 

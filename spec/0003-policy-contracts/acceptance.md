@@ -16,7 +16,8 @@ The implementation is accepted when:
 - egress requests reject invalid zones and malformed manifests;
 - verdict validation rejects missing provenance, unknown actions, and missing
   transformation instructions;
-- verdicts with missing or mismatched manifest digests fail closed;
+- verdicts with missing or mismatched manifest digests or typed scopes fail
+  closed;
 - the core evaluation gate denies secret content for every model target without
   invoking a pluggable policy;
 - baseline model execution denies every manifest containing secret content;

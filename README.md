@@ -3,8 +3,7 @@
 A provider-neutral runtime for distributing AI workloads across frontier APIs,
 self-hosted cloud models, and models on a personal network.
 
-> **Status: pre-alpha.** The repository is being scaffolded. There is no usable
-> API yet, and nothing here is stable.
+> **Status: pre-alpha.** Core contracts are usable, but the API is not stable.
 
 ## Why
 
@@ -40,6 +39,29 @@ The architecture is explained in
 delivery tasks, and acceptance gates live under [`spec/`](spec/README.md),
 starting with the
 [`Fabric Runner core specification`](spec/0001-fabric-runner-core/spec.md).
+
+## Current building blocks
+
+- durable SQLite event storage and deterministic replay;
+- execution and data-egress policy contracts;
+- deterministic eligibility and routing;
+- provider-neutral model/tool turns with schemas, budgets, cancellation, and
+  ordered parallel tools;
+- shared provider conformance tests; and
+- an OpenAI-compatible Chat Completions adapter for hosted or personal-network
+  endpoints.
+
+An OpenAI-compatible endpoint is configured explicitly. Plain HTTP is disabled
+unless the operator opts in for a trusted endpoint, such as a runtime on a
+personal network:
+
+```go
+provider, err := openaicompat.New(openaicompat.Config{
+    Name:              "home-models",
+    BaseURL:           "http://127.0.0.1:11434/v1",
+    AllowInsecureHTTP: true,
+})
+```
 
 ## Scope
 

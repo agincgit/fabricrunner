@@ -33,6 +33,10 @@ The canonical foundation is accepted when all of the following hold:
   no reachable known vulnerability (FR-CORE-007).
 - Repository licensing identifies FSL-1.1-MIT and its per-version two-year MIT
   conversion (FR-CORE-008).
+- Repository language consistently identifies current versions as Fair Source
+  or source-available, release records expose future-license dates, and
+  contribution terms preserve the future MIT grant (FR-CORE-009 and
+  FR-CORE-010).
 
 ### Phase 0 evidence
 
@@ -46,6 +50,7 @@ Local verification on 2026-09-07:
 | Static analysis | `staticcheck ./...` | Pass |
 | Race and repeatability | `go test ./... -race -count=20` | Pass |
 | Disclosure scan | Prohibited repository markers absent from the working tree | Pass |
+| License governance | Fair Source terminology, release dating, contribution terms, and v1 review recorded | Pass |
 | Published CI | [Build and secret-scanning run](https://github.com/agincgit/fabricrunner/actions/runs/34091300323) | Pass |
 
 ## Phase 1 gate

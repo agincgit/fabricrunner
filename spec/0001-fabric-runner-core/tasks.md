@@ -25,6 +25,9 @@
   gate (FR-CORE-007).
 - [x] Apply FSL-1.1-MIT with the per-version two-year MIT conversion
   (FR-CORE-008).
+- [x] Document licensing terminology, release dating, and inbound contribution
+  terms (FR-CORE-009 and FR-CORE-010).
+- [ ] Complete and record the v1.0 license review (FR-CORE-011).
 - [x] Capture Phase 0 acceptance evidence.
 
 ## Phase 1: single-node vertical slice

@@ -432,6 +432,14 @@ func TestMalformedStreamsFailClosed(t *testing.T) {
 		name   string
 		events []fabricrunner.ModelEvent
 	}{
+		{name: "missing start", events: []fabricrunner.ModelEvent{
+			{Type: fabricrunner.ModelEventTextDelta, Sequence: 1, Text: "late"},
+			{Type: fabricrunner.ModelEventStop, Sequence: 2, Stop: fabricrunner.StopEndTurn},
+		}},
+		{name: "repeated start", events: []fabricrunner.ModelEvent{
+			{Type: fabricrunner.ModelEventStart, Sequence: 1},
+			{Type: fabricrunner.ModelEventStart, Sequence: 2},
+		}},
 		{name: "out of order", events: []fabricrunner.ModelEvent{{Type: fabricrunner.ModelEventStart, Sequence: 2}}},
 		{name: "unterminated", events: []fabricrunner.ModelEvent{{Type: fabricrunner.ModelEventStart, Sequence: 1}}},
 		{name: "after terminal", events: []fabricrunner.ModelEvent{

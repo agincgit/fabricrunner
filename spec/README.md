@@ -45,3 +45,4 @@ replacement.
 | [0003](0003-policy-contracts/spec.md) | Policy contracts | Implemented |
 | [0004](0004-deterministic-routing/spec.md) | Deterministic routing | Implemented |
 | [0005](0005-turn-tool-loop/spec.md) | Provider-neutral turn/tool loop | Implemented |
+| [0006](0006-provider-conformance/spec.md) | Provider adapter conformance | In Progress |

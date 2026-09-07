@@ -1,0 +1,47 @@
+# Provider adapter conformance acceptance
+
+**Specification:** [spec.md](spec.md)
+
+**Status:** Pending
+
+The implementation is accepted when:
+
+- invalid capability values, tool-use modes, descriptor limits, labels, and
+  references fail closed;
+- provider discovery rejects an empty identity, mismatched ownership, and
+  duplicate models;
+- discovery cancellation is returned unchanged;
+- discovered labels and capabilities cannot alias provider-owned data;
+- missing, repeated, late, out-of-order, post-terminal, and unterminated start
+  or terminal events fail;
+- event types reject payload fields owned by another event type;
+- tool-call deltas and completed calls validate their canonical fields;
+- extensions survive deep cloning but cannot control stream state;
+- stream cancellation is returned unchanged and every accepted stream closes
+  exactly once;
+- a close failure is joined with, and does not replace, a receive failure;
+- the turn loop consumes the shared validator without changing its accepted
+  provider-neutral behavior;
+- the reusable fixture suite detects catalog, stream, close, and request
+  isolation violations; and
+- formatting, build, vet, static analysis, repeated race tests, vulnerability
+  scanning, CI, leak scanning, and repository disclosure scanning pass.
+
+## Evidence
+
+Local verification on 2026-09-07:
+
+| Check | Evidence | Result |
+|---|---|---|
+| Toolchain | `go version` | Pass (Go 1.25.13) |
+| Formatting | `gofmt -l .` | Pass (no output) |
+| Dependency integrity | `go mod verify` | Pass |
+| Build | `go build ./...` | Pass |
+| Vet | `go vet ./...` | Pass |
+| Race and repetition | `go test ./... -race -shuffle=on -count=20` | Pass |
+| Static analysis | `staticcheck ./...` with v0.6.1 | Pass |
+| Vulnerability scan | `govulncheck ./...` | Pass (0 reachable vulnerabilities) |
+| Secret-history scan | `gitleaks detect --redact` with v8.30.1 | Pass |
+| Repository reference scan | prohibited-reference scan excluding license and Git metadata | Pass |
+
+Published CI evidence is pending.

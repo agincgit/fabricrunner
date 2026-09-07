@@ -111,25 +111,7 @@ type LoopEvent struct {
 
 func (event LoopEvent) Clone() LoopEvent {
 	if event.ModelEvent != nil {
-		modelEvent := *event.ModelEvent
-		if modelEvent.ToolCall != nil {
-			call := cloneToolCall(*modelEvent.ToolCall)
-			modelEvent.ToolCall = &call
-		}
-		if modelEvent.Usage != nil {
-			usage := *modelEvent.Usage
-			modelEvent.Usage = &usage
-		}
-		if modelEvent.Error != nil {
-			modelError := *modelEvent.Error
-			modelEvent.Error = &modelError
-		}
-		if modelEvent.Extension != nil {
-			modelEvent.Extension = make(map[string]json.RawMessage, len(modelEvent.Extension))
-			for key, value := range event.ModelEvent.Extension {
-				modelEvent.Extension[key] = append(json.RawMessage(nil), value...)
-			}
-		}
+		modelEvent := event.ModelEvent.Clone()
 		event.ModelEvent = &modelEvent
 	}
 	if event.Message != nil {

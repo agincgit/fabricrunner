@@ -18,6 +18,7 @@ type TurnContext struct {
 }
 
 type TurnSelection struct {
+	Messages []Message
 	Provider Provider
 	Model    ModelRef
 }
@@ -94,9 +95,11 @@ const (
 	LoopEventToolStarted     LoopEventType = "tool_started"
 	LoopEventToolCompleted   LoopEventType = "tool_completed"
 	LoopEventStopped         LoopEventType = "loop_stopped"
+	LoopEventCheckpoint      LoopEventType = "checkpoint"
 )
 
 type LoopEvent struct {
+	Checkpoint  *LoopResult
 	Sequence    uint64
 	Type        LoopEventType
 	Turn        int
@@ -110,6 +113,10 @@ type LoopEvent struct {
 }
 
 func (event LoopEvent) Clone() LoopEvent {
+	if event.Checkpoint != nil {
+		checkpoint := event.Checkpoint.Clone()
+		event.Checkpoint = &checkpoint
+	}
 	if event.ModelEvent != nil {
 		modelEvent := event.ModelEvent.Clone()
 		event.ModelEvent = &modelEvent
@@ -165,6 +172,7 @@ func (e *ToolError) ToolErrorCode() string    { return e.Code }
 func (e *ToolError) ToolErrorMessage() string { return e.Message }
 
 type LoopRequest struct {
+	Continuation              *LoopCheckpoint
 	WorkloadID                ID
 	StepID                    ID
 	AttemptID                 ID
@@ -180,6 +188,20 @@ type LoopRequest struct {
 }
 
 func (request LoopRequest) Validate() error {
+	if request.Continuation != nil {
+		c := request.Continuation
+		if c.Sequence < 1 || c.Result.ModelCalls < 1 || c.Result.ModelCalls > request.Budget.MaxModelCalls || c.Result.ToolCalls < 0 || c.Result.ToolCalls > request.Budget.MaxToolCalls || c.Result.Stop != StopToolUse {
+			return errors.New("invalid continuation checkpoint")
+		}
+		if err := c.Result.Usage.Validate(); err != nil {
+			return err
+		}
+		for _, message := range c.Result.Messages {
+			if err := message.Validate(); err != nil {
+				return err
+			}
+		}
+	}
 	for _, field := range []struct {
 		name string
 		id   ID
@@ -239,6 +261,11 @@ func (request LoopRequest) Validate() error {
 }
 
 func (request LoopRequest) Clone() LoopRequest {
+	if request.Continuation != nil {
+		checkpoint := *request.Continuation
+		checkpoint.Result = checkpoint.Result.Clone()
+		request.Continuation = &checkpoint
+	}
 	request.Initial = CloneModelRequest(request.Initial)
 	request.Tools = append([]ToolBinding(nil), request.Tools...)
 	for index := range request.Tools {
@@ -256,6 +283,11 @@ type LoopResult struct {
 	ToolCalls      int
 	Failures       []ToolFailure
 	BudgetExceeded string
+}
+
+type LoopCheckpoint struct {
+	Sequence uint64
+	Result   LoopResult
 }
 
 func (result LoopResult) Clone() LoopResult {

@@ -12,9 +12,12 @@ sensitive material in a report.
 ## Security posture
 
 Fabric Runner treats model output, tool descriptions, provider responses, and
-remote workers as untrusted. Built-in sandbox enforcement for side-effecting
-tools is planned under spec 0012 and is not yet implemented. Applications
-supplying tool bindings must establish their confinement. Cross-zone data movement is denied when policy
+remote workers as untrusted. Built-in side-effecting tools use fail-closed
+sandbox executors. Linux bubblewrap confinement has behavioral test evidence;
+the macOS Seatbelt profile is experimental and awaits native acceptance.
+Unsupported platforms and missing executors deny side effects. Custom tool
+bindings must declare side effects and establish their own confinement.
+Cross-zone data movement is denied when policy
 cannot make a definitive decision.
 
 The project is pre-alpha. No release should be treated as a security boundary

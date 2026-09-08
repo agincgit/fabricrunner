@@ -2,7 +2,7 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** Draft
+**Status:** Implemented
 
 Each criterion below is the name of a test to be written before the
 implementation exists.
@@ -31,4 +31,23 @@ The implementation is accepted when:
 
 ## Evidence
 
-Pending implementation.
+See the dated local acceptance evidence below.
+
+## Local acceptance evidence — 2026-09-08 UTC
+
+| Requirement | Observable evidence | Result |
+|---|---|---|
+| FR-GATE-001, FR-GATE-002 | No-pause default; approval receives manifest/scope without prompt content | Pass |
+| FR-GATE-003 | Denial and timeout terminate with attributed decision records | Pass |
+| FR-GATE-004 | `TestReplayDoesNotReRequestApproval` | Pass |
+| FR-BUD-001, FR-BUD-002 | Pre-call input/output/cost/step denial; model-call, tool-call and wall-time tests; missing bound denies | Pass |
+| FR-LIFE-001 | `TestCancellationPropagatesWithinBound`; confined command cancellation | Pass |
+| FR-LIFE-002 | `TestCleanupRunsOnEveryTerminationPath` | Pass |
+| FR-LIFE-003 | `TestCleanupFailureDoesNotMaskCause` | Pass |
+| Checks | Windows tests/vet; Linux full race suite; staticcheck; patched-toolchain vulnerability scan; redacted leak scan | Pass |
+
+Approvals bind the selected model and actual zone. The optional initial gate is
+resolved after routing but before reservation/provider I/O. Live resume does not
+re-request an already completed initial gate. Bounds are supplied by a trusted
+application and must include provider defaults; they are conservative charges,
+not a pricing model. In-process collaborators must honor their context.

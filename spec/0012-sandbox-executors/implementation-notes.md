@@ -11,7 +11,8 @@ absolute input paths. Writes and edits execute in a dedicated helper inside
 the OS sandbox, rather than checking a capability flag and writing in the
 unconfined coordinator. The helper is an explicitly configured, trusted binary;
 model output cannot select it. Commands use an argument vector and no shell
-wrapper. Programs may invoke their own subprocesses, all under confinement.
+wrapper. Linux programs may invoke subprocesses under the PID namespace; the
+initial macOS profile denies child creation pending native acceptance.
 
 Linux uses a fresh bubblewrap PID, network, user, IPC, UTS and mount namespace
 per execution, a read-only system runtime, empty environment, a writable

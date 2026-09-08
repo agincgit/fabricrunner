@@ -18,6 +18,9 @@ const (
 	ExecutionApproval        ExecutionStage = "approval"
 	ExecutionBudget          ExecutionStage = "budget"
 	ExecutionCleanup         ExecutionStage = "cleanup"
+	ExecutionCompaction      ExecutionStage = "compaction"
+	ExecutionRequest         ExecutionStage = "request"
+	ExecutionResumed         ExecutionStage = "resumed"
 )
 
 type RoutingRecord struct {
@@ -28,20 +31,22 @@ type RoutingRecord struct {
 // ExecutionRecord is part of the durable workload stream, never telemetry.
 // A turn number binds policy, placement and loop activity to one model turn.
 type ExecutionRecord struct {
-	StepID         ID               `json:"step_id"`
-	Turn           int              `json:"turn"`
-	Stage          ExecutionStage   `json:"stage"`
-	Classification Classification   `json:"classification"`
-	Manifest       *ContentManifest `json:"manifest,omitempty"`
-	Verdict        *PolicyVerdict   `json:"verdict,omitempty"`
-	Routing        *RoutingRecord   `json:"routing,omitempty"`
-	Loop           *LoopEvent       `json:"loop,omitempty"`
-	Result         *LoopResult      `json:"result,omitempty"`
-	FailureCode    string           `json:"failure_code,omitempty"`
-	Sandbox        *SandboxEvent    `json:"sandbox,omitempty"`
-	Approval       *ApprovalRecord  `json:"approval,omitempty"`
-	Budget         *BudgetRecord    `json:"budget,omitempty"`
-	Cleanup        *CleanupRecord   `json:"cleanup,omitempty"`
+	StepID         ID                `json:"step_id"`
+	Turn           int               `json:"turn"`
+	Stage          ExecutionStage    `json:"stage"`
+	Classification Classification    `json:"classification"`
+	Manifest       *ContentManifest  `json:"manifest,omitempty"`
+	Verdict        *PolicyVerdict    `json:"verdict,omitempty"`
+	Routing        *RoutingRecord    `json:"routing,omitempty"`
+	Loop           *LoopEvent        `json:"loop,omitempty"`
+	Result         *LoopResult       `json:"result,omitempty"`
+	FailureCode    string            `json:"failure_code,omitempty"`
+	Sandbox        *SandboxEvent     `json:"sandbox,omitempty"`
+	Approval       *ApprovalRecord   `json:"approval,omitempty"`
+	Budget         *BudgetRecord     `json:"budget,omitempty"`
+	Cleanup        *CleanupRecord    `json:"cleanup,omitempty"`
+	Compaction     *CompactionRecord `json:"compaction,omitempty"`
+	RequestSHA256  string            `json:"request_sha256,omitempty"`
 }
 
 func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
@@ -85,7 +90,7 @@ func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
 		return err
 	}
 	count := 0
-	for _, set := range []bool{r.Verdict != nil, r.Routing != nil, r.Loop != nil, r.Result != nil, r.Sandbox != nil, r.Approval != nil, r.Budget != nil, r.Cleanup != nil} {
+	for _, set := range []bool{r.Verdict != nil, r.Routing != nil, r.Loop != nil, r.Result != nil, r.Sandbox != nil, r.Approval != nil, r.Budget != nil, r.Cleanup != nil, r.Compaction != nil, r.RequestSHA256 != ""} {
 		if set {
 			count++
 		}
@@ -94,6 +99,34 @@ func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
 		return errors.New("execution record must have exactly one payload")
 	}
 	switch r.Stage {
+	case ExecutionRequest, ExecutionResumed:
+		if err := validateSHA256("request digest", r.RequestSHA256); err != nil {
+			return err
+		}
+	case ExecutionCompaction:
+		c := r.Compaction
+		if c == nil || c.FirstEvent < 1 || c.LastEvent < c.FirstEvent || c.LastEvent >= event.Sequence || c.BeforeTokens < 0 || c.AfterTokens < 0 || len(c.Inputs) == 0 {
+			return errors.New("invalid compaction range or counts")
+		}
+		if err := c.Model.Validate(); err != nil {
+			return err
+		}
+		if err := c.Usage.Validate(); err != nil {
+			return err
+		}
+		if err := c.Summary.Validate(); err != nil {
+			return err
+		}
+		for _, message := range append(CloneMessages(c.Inputs), c.Summary) {
+			if err := message.Validate(); err != nil {
+				return err
+			}
+			for _, part := range message.Content {
+				if classificationRank(part.Classification) > classificationRank(r.Classification) {
+					return errors.New("compaction classification mismatch")
+				}
+			}
+		}
 	case ExecutionApproval:
 		if r.Approval == nil || r.Approval.Decision.Actor == "" {
 			return errors.New("approval actor required")
@@ -191,7 +224,7 @@ func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
 			}
 		}
 		switch r.Loop.Type {
-		case LoopEventTurnStarted, LoopEventModel, LoopEventMessageAppended, LoopEventToolStarted, LoopEventToolCompleted, LoopEventStopped:
+		case LoopEventTurnStarted, LoopEventModel, LoopEventMessageAppended, LoopEventToolStarted, LoopEventToolCompleted, LoopEventStopped, LoopEventCheckpoint:
 		default:
 			return errors.New("unknown recorded loop event")
 		}
@@ -205,6 +238,20 @@ func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
 		}
 		if r.Loop.Type == LoopEventMessageAppended && r.Loop.Message == nil {
 			return errors.New("message event payload missing")
+		}
+		if r.Loop.Type == LoopEventCheckpoint {
+			c := r.Loop.Checkpoint
+			if c == nil || previousLoop == nil || previousLoop.Type != LoopEventMessageAppended || previousLoop.Message == nil || previousLoop.Message.Role != RoleTool || c.ModelCalls != r.Turn || c.ToolCalls < 1 || c.Stop != StopToolUse {
+				return errors.New("invalid turn checkpoint")
+			}
+			if err := c.Usage.Validate(); err != nil {
+				return err
+			}
+			for _, message := range c.Messages {
+				if err := message.Validate(); err != nil {
+					return err
+				}
+			}
 		}
 		if (r.Loop.Type == LoopEventToolStarted || r.Loop.Type == LoopEventToolCompleted) && r.Loop.ToolCall == nil {
 			return errors.New("tool event payload missing")

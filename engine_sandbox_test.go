@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	fr "github.com/agincgit/fabricrunner"
 	"testing"
+	"time"
 )
 
 type sandboxEngineTool struct{ engineTool }
@@ -31,6 +32,8 @@ func TestPolicyCanEvaluateSandboxCapability(t *testing.T) { testSandboxLifecycle
 func TestSandboxLifecycleRecorded(t *testing.T)           { testSandboxLifecycle(t) }
 func testSandboxLifecycle(t *testing.T) {
 	e, r, p := engineFixture(t)
+	observations := make(chan fr.Record, 64)
+	e.Observer = engineObserver(func(_ context.Context, record fr.Record) error { observations <- record; return nil })
 	policy := &sandboxPolicy{}
 	e.ExecutionPolicy = policy
 	h := &sandboxEngineTool{}
@@ -53,5 +56,15 @@ func testSandboxLifecycle(t *testing.T) {
 	}
 	if !phases["established"] || !phases["teardown"] {
 		t.Fatal(phases)
+	}
+	seen := map[string]bool{}
+	deadline := time.After(time.Second)
+	for !seen["sandbox_established"] || !seen["sandbox_teardown"] {
+		select {
+		case record := <-observations:
+			seen[record.Attributes[fr.AttrOutcome]] = true
+		case <-deadline:
+			t.Fatal("sandbox observer lifecycle incomplete")
+		}
 	}
 }

@@ -114,6 +114,41 @@ func TestCleanupFailureDoesNotMaskCause(t *testing.T) {
 	}
 }
 
+func TestCancellationPropagatesWithinBound(t *testing.T) {
+	e, r, p := engineFixture(t)
+	entered := make(chan struct{})
+	cancelled := make(chan struct{})
+	p.run = func(ctx context.Context, _ fr.ModelRequest) (fr.ModelStream, error) {
+		close(entered)
+		<-ctx.Done()
+		close(cancelled)
+		return nil, ctx.Err()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { _, err := e.Run(ctx, r); done <- err }()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("provider not entered")
+	}
+	cancel()
+	select {
+	case <-cancelled:
+	case <-time.After(time.Second):
+		t.Fatal("provider did not receive cancellation")
+	}
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cleanup did not finish")
+	}
+}
+
 type testApprover struct {
 	calls int
 	allow bool

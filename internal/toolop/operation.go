@@ -67,7 +67,7 @@ func Run(ctx context.Context, root, operation string, input Input, maxOutput int
 	result := Result{}
 	switch operation {
 	case "read":
-		f, err := r.Open(input.Path)
+		f, err := openRead(r, input.Path)
 		if err != nil {
 			return result, err
 		}
@@ -90,6 +90,9 @@ func Run(ctx context.Context, root, operation string, input Input, maxOutput int
 		result.Text = string(data)
 		return result, ctx.Err()
 	case "write", "edit":
+		if info, err := r.Lstat(input.Path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			return result, errors.New("write and edit refuse symlink targets")
+		}
 		if _, err := r.Stat(input.Path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return result, err
 		}
@@ -98,7 +101,7 @@ func Run(ctx context.Context, root, operation string, input Input, maxOutput int
 			if input.Old == "" {
 				return result, errors.New("edit match must not be empty")
 			}
-			f, err := r.Open(input.Path)
+			f, err := openRead(r, input.Path)
 			if err != nil {
 				return result, err
 			}

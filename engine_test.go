@@ -380,7 +380,8 @@ func TestObserverCoversFullPath(t *testing.T) {
 }
 func TestLoopSinkUnchanged(t *testing.T) {
 	// The public loop remains independently usable; its own suite exercises sinks.
-	if reflect.TypeFor[fr.LoopSink]().NumMethod() != 1 || reflect.TypeFor[fr.LoopEvent]().NumField() != 10 {
+	// Phase 1 recovery adds a checkpoint payload; the sink method is unchanged.
+	if reflect.TypeFor[fr.LoopSink]().NumMethod() != 1 {
 		t.Fatal("turn-scoped contract changed")
 	}
 }

@@ -166,14 +166,15 @@ type OutputConstraint struct {
 }
 
 type ModelRequest struct {
-	Model           ModelRef
-	Messages        []Message
-	Tools           []ToolDefinition
-	ToolChoice      ToolChoice
-	Output          *OutputConstraint
-	MaxOutputTokens int
-	Metadata        map[string]string
-	Extension       map[string]json.RawMessage
+	AutomaticCompaction bool
+	Model               ModelRef
+	Messages            []Message
+	Tools               []ToolDefinition
+	ToolChoice          ToolChoice
+	Output              *OutputConstraint
+	MaxOutputTokens     int
+	Metadata            map[string]string
+	Extension           map[string]json.RawMessage
 }
 
 func (r ModelRequest) Validate() error {

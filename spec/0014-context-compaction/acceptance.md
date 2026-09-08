@@ -2,7 +2,7 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** Draft
+**Status:** Implemented
 
 Each criterion below is the name of a test to be written before the
 implementation exists.
@@ -28,4 +28,21 @@ The implementation is accepted when:
 
 ## Evidence
 
-Pending implementation.
+See the dated local acceptance evidence below.
+
+## Local acceptance evidence — 2026-09-08 UTC
+
+| Requirement | Observable evidence | Result |
+|---|---|---|
+| FR-CTX-001 | `TestContextAccountingMatchesEventStream`, including compaction usage/call totals | Pass |
+| FR-CTX-002 | Explicit-enabled compaction and unset-overflow tests | Pass |
+| FR-CTX-003 | Exact inputs, summary, model, token counts and prior event range checked | Pass |
+| FR-CTX-004 | `TestReplayAppliesRecordedSummary` makes no new provider call | Pass |
+| FR-CTX-005 | Secret-bearing message excluded before summary request and index recorded | Pass |
+| FR-CTX-006 | `TestCompactionBudgetExhaustionTerminates` | Pass |
+| Regression | Provider capability hint still does not enable compaction | Pass |
+| Checks | Windows tests/vet; Linux full race suite; staticcheck; patched-toolchain vulnerability scan; redacted leak scan | Pass |
+
+The supplied context counter accounts for provider-specific input/framing. The
+actual usage event stream remains authoritative for reported usage. A summary
+input that cannot fit the declared window is refused rather than truncated.

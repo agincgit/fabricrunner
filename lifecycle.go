@@ -72,7 +72,7 @@ func (s *engineRun) approve(ctx context.Context, turn int, manifest ContentManif
 	approvalCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	request := ApprovalRequest{Scope: scope.Clone(), Manifest: manifest.Clone()}
-	decision, approvalErr := s.engine.Approver.Approve(approvalCtx, ApprovalRequest{Scope: scope.Clone(), Manifest: manifest.Clone()})
+	decision, approvalErr := callApprover(approvalCtx, s.engine.Approver, ApprovalRequest{Scope: scope.Clone(), Manifest: manifest.Clone()})
 	if approvalErr != nil || approvalCtx.Err() != nil || strings.TrimSpace(decision.Actor) == "" {
 		decision = ApprovalDecision{Actor: "fabricrunner", Reason: "approval_failed"}
 		if approvalCtx.Err() != nil {
@@ -88,6 +88,15 @@ func (s *engineRun) approve(ctx context.Context, turn int, manifest ContentManif
 		return errors.Join(ErrApprovalDenied, approvalErr, approvalCtx.Err())
 	}
 	return ctx.Err()
+}
+func callApprover(ctx context.Context, approver Approver, request ApprovalRequest) (decision ApprovalDecision, err error) {
+	defer func() {
+		if recover() != nil {
+			decision = ApprovalDecision{}
+			err = errors.New("approver panicked")
+		}
+	}()
+	return approver.Approve(ctx, request)
 }
 func (s *engineRun) resolveApproval(ctx context.Context, turn int, manifest ContentManifest, v PolicyVerdict) (PolicyVerdict, error) {
 	if !v.RequiresApproval() {
@@ -147,15 +156,7 @@ func (s *engineRun) admit(ctx context.Context) error {
 	if s.request.Budget.MaxSteps < 1 {
 		return s.budgetFailure(ctx, 0, "steps")
 	}
-	if s.engine.Approver == nil {
-		return nil
-	}
-	manifest, err := modelManifest(s.request.Initial, s.request.Classification)
-	if err != nil {
-		return err
-	}
-	request := ExecutionPolicyRequest{WorkloadID: s.request.WorkloadID, StepID: s.request.StepID, AttemptID: s.request.AttemptID, StepKind: StepModelTurn, Target: ExecutionTarget{Kind: ExecutionTargetModel, Zone: s.request.SourceZone, Model: &s.request.Initial.Model}, Manifest: manifest, Autonomous: s.request.Autonomous}
-	return s.approve(ctx, 0, manifest, PolicyScopeForExecution(request))
+	return nil
 }
 func (s *engineRun) cleanup(ctx context.Context) error {
 	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
@@ -163,8 +164,7 @@ func (s *engineRun) cleanup(ctx context.Context) error {
 	var result error
 	for _, binding := range s.request.Tools {
 		err := binding.Handler.Close(WithSandboxEventSink(cleanupCtx, s))
-		recordErr := s.record(cleanupCtx, ExecutionRecord{Stage: ExecutionCleanup, Cleanup: &CleanupRecord{Failed: err != nil, Resource: binding.Definition.Name}})
-		result = errors.Join(result, err, recordErr)
+		result = errors.Join(result, err)
 	}
 	return result
 }

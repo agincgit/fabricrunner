@@ -3,7 +3,9 @@ package sandbox_test
 import (
 	"context"
 	"errors"
+	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -71,30 +73,51 @@ func TestConfinedWriteOutsideRootFails(t *testing.T) {
 	}
 }
 func TestConfinedNetworkCallFails(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux Python network probe; macOS evidence remains separate")
+	box, helper := probeBox(t, t.TempDir())
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
 	}
-	box := establish(t, t.TempDir())
-	result, err := box.Run(context.Background(), sandbox.Command{Args: []string{"/usr/bin/python3", "-c", "import socket; s=socket.socket(); s.settimeout(.2); s.connect(('1.1.1.1',443))"}, MaxOutput: 4096})
-	if err == nil || !strings.Contains(string(result.Output), "Network is unreachable") {
+	defer listener.Close()
+	result, err := box.Run(context.Background(), sandbox.Command{Args: []string{helper, "network", listener.Addr().String()}, MaxOutput: 4096})
+	if err == nil || !strings.Contains(string(result.Output), "connect_denied") {
 		t.Fatalf("network not denied as expected: %v %s", err, result.Output)
 	}
 }
 func TestConfinedProcessEscapeFails(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux PID namespace probe; macOS evidence remains separate")
-	}
 	root := t.TempDir()
-	box := establish(t, root)
+	box, helper := probeBox(t, root)
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
-	code := "import os,time; p=os.fork(); os.setsid() if p==0 else None; time.sleep(.7); open('escaped','w').write('survived')"
-	_, err := box.Run(ctx, sandbox.Command{Args: []string{"/usr/bin/python3", "-c", code}, MaxOutput: 1024})
-	if !errors.Is(err, context.DeadlineExceeded) {
+	result, err := box.Run(ctx, sandbox.Command{Args: []string{helper, "escape"}, MaxOutput: 1024})
+	if !errors.Is(err, context.DeadlineExceeded) && !strings.Contains(string(result.Output), "fork_denied") {
 		t.Fatalf("got %v", err)
 	}
-	time.Sleep(time.Second)
+	time.Sleep(1200 * time.Millisecond)
 	if _, err := os.Stat(filepath.Join(root, "escaped")); !os.IsNotExist(err) {
 		t.Fatalf("escaped child survived: %v", err)
 	}
+}
+
+func probeBox(t *testing.T, root string) (sandbox.Sandbox, string) {
+	t.Helper()
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("native sandbox unsupported on " + runtime.GOOS)
+	}
+	helper := filepath.Join(t.TempDir(), "probe")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	if data, err := exec.CommandContext(ctx, "go", "build", "-o", helper, "./testdata/probe").CombinedOutput(); err != nil {
+		t.Fatalf("probe build: %v %s", err, data)
+	}
+	box, err := sandbox.New().Establish(ctx, sandbox.Config{Root: root, Helper: helper})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := box.Close(context.Background()); err != nil {
+			t.Error(err)
+		}
+	})
+	return box, helper
 }

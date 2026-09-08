@@ -2,7 +2,7 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** Draft
+**Status:** Implemented
 
 Each criterion below is the name of a test to be written before the
 implementation exists.
@@ -27,4 +27,22 @@ The implementation is accepted when:
 
 ## Evidence
 
-Pending implementation.
+See the dated local acceptance evidence below.
+
+## Local acceptance evidence — 2026-09-08 UTC
+
+Implemented on Linux; Windows explicitly denies side effects. No GitHub push has
+been made. macOS executor acceptance is tracked separately in 0012.
+
+| Requirement | Observable evidence | Result |
+|---|---|---|
+| FR-TOOL-001, FR-TOOL-002 | `TestPathEscapeRefused`; confined write/edit/read round trip | Pass on Linux |
+| FR-TOOL-003, FR-TOOL-004 | Declaration and missing-sandbox denial tests | Pass |
+| FR-TOOL-005, FR-TOOL-006 | Unknown provenance and explicit output truncation tests | Pass |
+| FR-TOOL-007 | `TestCommandToolTakesArgumentVector` sends shell metacharacters literally | Pass on Linux |
+| FR-TOOL-008 | `TestToolCancellationRecordsPartialEffects`; durable sandbox execution outcome | Pass on Linux |
+| Checks | Windows tests/vet; Linux full race suite; staticcheck; patched-toolchain vulnerability scan; redacted gitleaks directory scan | Pass |
+
+Write/edit replace regular files atomically and refuse symlink targets. Read
+allows symlinks contained by `os.Root`. FIFO/device reads are refused; Unix opens
+are nonblocking so FIFO replacement cannot hang before file-type validation.

@@ -91,3 +91,18 @@ must cover provider defaults when `MaxOutputTokens` is unset. The engine does
 not mutate the authorized request after policy hashing. This supersedes the
 0010 post-report-only token/cost behavior; the low-level loop still validates
 reported usage independently.
+
+## Recovery and compaction supersession
+
+The read-only `Replay` contract remains unchanged. Live continuation is now
+`Resume`, specified in [recovery plan](recovery-plan.md). New fields are
+`LoopRequest.Continuation`, `LoopEvent.Checkpoint`, `TurnSelection.Messages`,
+`ModelRequest.AutomaticCompaction`, and `Engine.ContextCounter`. These supersede
+the original signature table's statement that every loop data type stayed
+unchanged. The `LoopSink` method itself is unchanged.
+
+A turn checkpoint carries the ordered history and cumulative loop usage/call
+counts. Compaction records carry their own usage, which the engine includes in
+the final total. New reservations after a checkpoint invalidate that recovery
+boundary, including reservations for compaction. Mid-call work is never retried
+from an older checkpoint.

@@ -12,8 +12,9 @@ sensitive material in a report.
 ## Security posture
 
 Fabric Runner treats model output, tool descriptions, provider responses, and
-remote workers as untrusted. Side-effecting tools are denied when a required
-sandbox cannot be established. Cross-zone data movement is denied when policy
+remote workers as untrusted. Built-in sandbox enforcement for side-effecting
+tools is planned under spec 0012 and is not yet implemented. Applications
+supplying tool bindings must establish their confinement. Cross-zone data movement is denied when policy
 cannot make a definitive decision.
 
 The project is pre-alpha. No release should be treated as a security boundary

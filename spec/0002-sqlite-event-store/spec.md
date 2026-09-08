@@ -41,6 +41,8 @@ event-store contract and the source of truth for single-node execution.
   executes a tool, or performs application-defined callbacks.
 - **FR-SQL-010:** A newly created database file uses owner-only permissions on
   platforms that support POSIX file modes.
+- **FR-SQL-011:** Absolute Windows drive paths are encoded as local file URIs,
+  not URI authorities, so file-backed storage opens on Windows as well as Unix.
 
 ## Storage model
 

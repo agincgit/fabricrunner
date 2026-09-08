@@ -17,3 +17,5 @@
   FR-SQL-009).
 - [x] Add restart, concurrency, rollback, corruption, and cancellation tests.
 - [x] Capture local and published acceptance evidence.
+- [x] Encode Windows drive paths as local file URIs (FR-SQL-011); the SQLite
+  suite and engine close/reopen test pass on Windows with Go 1.25.13.

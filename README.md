@@ -43,6 +43,9 @@ starting with the
 ## Current building blocks
 
 - durable SQLite event storage and deterministic replay;
+- a single-node `Engine` composing policy, routing, storage, providers, tools,
+  and the turn loop, with a durable audit of each model turn;
+- optional exporter-neutral observation with bounded callback isolation;
 - execution and data-egress policy contracts;
 - deterministic eligibility and routing;
 - provider-neutral model/tool turns with schemas, budgets, cancellation, and
@@ -50,6 +53,14 @@ starting with the
 - shared provider conformance tests; and
 - OpenAI-compatible Chat Completions and Anthropic Messages adapters, both
   exercised through the same provider-neutral loop.
+
+See [running a workload](docs/EXECUTION.md) for engine composition and current
+limits. Phase 1 acceptance is still pending; distributed outbound workers
+remain a Phase 2 deliverable.
+
+Build with the patched Go toolchain specified by `go.mod` (currently 1.25.13).
+The patch-level requirement is intentional. Automatic Go toolchain selection
+downloads it when needed.
 
 An OpenAI-compatible endpoint is configured explicitly. Plain HTTP is disabled
 unless the operator opts in for a trusted endpoint, such as a runtime on a

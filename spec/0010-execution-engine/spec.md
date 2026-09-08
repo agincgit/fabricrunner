@@ -2,7 +2,7 @@
 
 **ID:** 0010
 
-**Status:** Draft
+**Status:** Implemented
 
 **Depends on:** [Fabric Runner core](../0001-fabric-runner-core/spec.md),
 [SQLite event store](../0002-sqlite-event-store/spec.md),
@@ -59,6 +59,10 @@ makes it a named deliverable.
   terminal state with the exhausted dimension recorded.
 - **FR-ENG-009:** The engine emits observer records for each path stage per
   FR-TEL-002, and runs identically with no observer attached.
+- **FR-ENG-010:** A duplicate workload submission or failed durable append
+  never causes an external call to be retried. A storage failure may leave a
+  committed running projection requiring reconciliation; it must not produce
+  a fabricated terminal state.
 
 ## Non-goals
 

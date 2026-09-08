@@ -563,7 +563,11 @@ func inspectSchemaVersion(ctx context.Context, path string) (int, error) {
 }
 
 func databaseURL(path string) *url.URL {
-	return &url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
+	uriPath := filepath.ToSlash(path)
+	if len(uriPath) >= 3 && uriPath[1] == ':' && uriPath[2] == '/' {
+		uriPath = "/" + uriPath
+	}
+	return &url.URL{Scheme: "file", Path: uriPath}
 }
 
 func ensureDatabaseFile(path string) (bool, error) {

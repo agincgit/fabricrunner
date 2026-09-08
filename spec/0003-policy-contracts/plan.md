@@ -22,3 +22,10 @@ safe defaults. It is deterministic and performs no I/O.
 5. Add table-driven contract, cancellation, mutation-isolation, and baseline
    behavior tests.
 6. Run build, vet, static analysis, race tests, vulnerability scanning, and CI.
+
+## 0012 supersession
+
+The original omission of sandbox capability from `ExecutionTarget` is superseded
+by 0012. `ExecutionTarget.Sandbox` carries observed establishment and backend;
+policy scope equality includes both values. It never authorizes an unconfined
+fallback. The engine denies declared side effects without establishment.

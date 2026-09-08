@@ -2,7 +2,7 @@
 
 **ID:** 0012
 
-**Status:** Draft
+**Status:** In Progress
 
 **Depends on:** [Policy contracts](../0003-policy-contracts/spec.md),
 [Execution engine](../0010-execution-engine/spec.md)

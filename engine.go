@@ -115,7 +115,7 @@ func (e *Engine) Run(ctx context.Context, request EngineRequest) (projection *Wo
 	loopRequest = loopRequest.Clone()
 	s.request.Tools = loopRequest.Tools
 	for i := range loopRequest.Tools {
-		loopRequest.Tools[i].Handler = &engineToolHandler{run: s, handler: loopRequest.Tools[i].Handler}
+		loopRequest.Tools[i].Handler = &engineToolHandler{run: s, handler: loopRequest.Tools[i].Handler, sideEffecting: loopRequest.Tools[i].Definition.SideEffecting}
 	}
 	initial := []engineDraft{
 		{EventTypeWorkloadCreated, WorkloadCreatedPayload{SessionID: request.SessionID, Goal: request.Goal, Budget: request.Budget}},
@@ -417,16 +417,29 @@ func (s *engineModelStream) Close() error {
 }
 
 type engineToolHandler struct {
-	run     *engineRun
-	handler ToolHandler
+	run           *engineRun
+	handler       ToolHandler
+	sideEffecting bool
 }
 
 func (h *engineToolHandler) Execute(ctx context.Context, call ToolInvocation) (ToolOutput, error) {
+	ctx = WithSandboxEventSink(ctx, h.run)
+	capability := SandboxCapability{}
+	if tool, ok := h.handler.(SandboxedTool); ok {
+		var err error
+		capability, err = tool.PrepareSandbox(ctx)
+		if err != nil {
+			return ToolOutput{}, err
+		}
+	}
+	if h.sideEffecting && !capability.Established {
+		return ToolOutput{}, ErrSandboxDenied
+	}
 	manifest, err := valueManifest(call.Call, h.run.request.ModelOutputClassification)
 	if err != nil {
 		return ToolOutput{}, err
 	}
-	v, _ := EvaluateExecutionPolicy(ctx, h.run.engine.ExecutionPolicy, ExecutionPolicyRequest{WorkloadID: call.WorkloadID, StepID: call.StepID, AttemptID: call.AttemptID, StepKind: StepTool, Autonomous: h.run.request.Autonomous, Target: ExecutionTarget{Kind: ExecutionTargetTool, Zone: h.run.request.SourceZone, ToolName: call.Call.Name}, Manifest: manifest})
+	v, _ := EvaluateExecutionPolicy(ctx, h.run.engine.ExecutionPolicy, ExecutionPolicyRequest{WorkloadID: call.WorkloadID, StepID: call.StepID, AttemptID: call.AttemptID, StepKind: StepTool, Autonomous: h.run.request.Autonomous, Target: ExecutionTarget{Kind: ExecutionTargetTool, Zone: h.run.request.SourceZone, ToolName: call.Call.Name, Sandbox: capability}, Manifest: manifest})
 	if ctx.Err() != nil {
 		return ToolOutput{}, ctx.Err()
 	}
@@ -442,7 +455,17 @@ func (h *engineToolHandler) Execute(ctx context.Context, call ToolInvocation) (T
 	defer h.run.observe(ctx, RecordTool, "finished")
 	return h.handler.Execute(ctx, call)
 }
-func (h *engineToolHandler) Close(ctx context.Context) error { return h.handler.Close(ctx) }
+func (h *engineToolHandler) Close(ctx context.Context) error {
+	return h.handler.Close(WithSandboxEventSink(ctx, h.run))
+}
+func (s *engineRun) RecordSandboxEvent(ctx context.Context, event SandboxEvent) error {
+	if err := s.record(ctx, ExecutionRecord{Stage: ExecutionSandbox, Sandbox: &event}); err != nil {
+		s.stop(err)
+		return err
+	}
+	s.observe(ctx, RecordTool, "sandbox_"+event.Phase)
+	return nil
+}
 func valueManifest(value any, class Classification) (ContentManifest, error) {
 	encoded, err := json.Marshal(value)
 	if err != nil {

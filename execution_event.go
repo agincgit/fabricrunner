@@ -14,6 +14,7 @@ const (
 	ExecutionRoutingDecided  ExecutionStage = "routing"
 	ExecutionLoopEvent       ExecutionStage = "loop"
 	ExecutionFinished        ExecutionStage = "finished"
+	ExecutionSandbox         ExecutionStage = "sandbox"
 )
 
 type RoutingRecord struct {
@@ -34,6 +35,7 @@ type ExecutionRecord struct {
 	Loop           *LoopEvent       `json:"loop,omitempty"`
 	Result         *LoopResult      `json:"result,omitempty"`
 	FailureCode    string           `json:"failure_code,omitempty"`
+	Sandbox        *SandboxEvent    `json:"sandbox,omitempty"`
 }
 
 func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
@@ -77,7 +79,7 @@ func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
 		return err
 	}
 	count := 0
-	for _, set := range []bool{r.Verdict != nil, r.Routing != nil, r.Loop != nil, r.Result != nil} {
+	for _, set := range []bool{r.Verdict != nil, r.Routing != nil, r.Loop != nil, r.Result != nil, r.Sandbox != nil} {
 		if set {
 			count++
 		}
@@ -86,6 +88,15 @@ func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
 		return errors.New("execution record must have exactly one payload")
 	}
 	switch r.Stage {
+	case ExecutionSandbox:
+		if r.Sandbox == nil || r.Sandbox.Backend == "" {
+			return errors.New("sandbox record requires backend")
+		}
+		switch r.Sandbox.Phase {
+		case "established", "denied", "teardown", "execution_completed", "execution_failed":
+		default:
+			return errors.New("invalid sandbox lifecycle phase")
+		}
 	case ExecutionPolicyEvaluated:
 		if r.Verdict == nil || r.Manifest == nil {
 			return errors.New("policy record requires verdict and manifest")

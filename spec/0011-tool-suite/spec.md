@@ -2,7 +2,7 @@
 
 **ID:** 0011
 
-**Status:** Draft
+**Status:** In Progress
 
 **Depends on:** [Execution engine](../0010-execution-engine/spec.md),
 [Sandbox executors](../0012-sandbox-executors/spec.md)

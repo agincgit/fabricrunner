@@ -109,11 +109,12 @@ func (p ContentPart) Validate() error {
 }
 
 type ToolDefinition struct {
-	Name         string
-	Description  string
-	InputSchema  json.RawMessage
-	OutputSchema json.RawMessage
-	Strict       bool
+	SideEffecting bool
+	Name          string
+	Description   string
+	InputSchema   json.RawMessage
+	OutputSchema  json.RawMessage
+	Strict        bool
 }
 
 func (t ToolDefinition) Validate() error {

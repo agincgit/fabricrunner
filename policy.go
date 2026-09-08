@@ -142,8 +142,9 @@ const (
 )
 
 // ExecutionTarget identifies the bounded model or tool placement under
-// consideration. Sandbox availability is deliberately absent.
+// consideration. 0012 supersedes the original omission of sandbox capability.
 type ExecutionTarget struct {
+	Sandbox  SandboxCapability   `json:"sandbox,omitempty"`
 	Kind     ExecutionTargetKind `json:"kind"`
 	Zone     Zone                `json:"zone"`
 	Model    *ModelRef           `json:"model,omitempty"`
@@ -423,7 +424,7 @@ func (scope PolicyScope) Equal(other PolicyScope) bool {
 }
 
 func executionTargetsEqual(left, right ExecutionTarget) bool {
-	if left.Kind != right.Kind || left.Zone != right.Zone || left.ToolName != right.ToolName {
+	if left.Kind != right.Kind || left.Zone != right.Zone || left.ToolName != right.ToolName || left.Sandbox != right.Sandbox {
 		return false
 	}
 	if left.Model == nil || right.Model == nil {

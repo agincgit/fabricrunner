@@ -2,7 +2,7 @@
 
 **ID:** 0009
 
-**Status:** Draft
+**Status:** Implemented
 
 **Depends on:** [Fabric Runner core](../0001-fabric-runner-core/spec.md)
 

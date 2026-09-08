@@ -2,25 +2,48 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Design
 
-The engine is a state machine over the workload transition table. Each
-iteration resolves the next step, evaluates execution policy, routes to a
-placement, runs one turn through the loop, applies egress policy to any
-crossing, and appends the resulting events — in that order, with the append
-preceding any observable effect.
+The root `Engine` receives the existing `TurnLoop` as a dependency, avoiding an
+import cycle with the loop implementation. One request runs a bounded workload
+with one execution step. Its selector evaluates execution and outbound egress
+policy for every candidate on every turn, persists those verdicts, then routes
+and persists the validated decision before the loop may contact a provider.
 
 Persist-before-expose is enforced structurally rather than by convention: the
 engine's only means of surfacing state is a projection read, and projection
 reads come from the store. There is no in-memory view a caller can observe
 ahead of the commit.
 
-Replay is the same state machine with the provider and tool executor replaced
-by readers over the recorded stream. That the two paths share one machine is
-what makes FR-ENG-006 meaningful rather than a parallel implementation that
-drifts.
+Execution appends core transitions and typed `execution.recorded` events to
+the same workload aggregate. SQLite applies `WorkloadProjection.Apply` inside
+the append transaction. Both the returned state and replay use that same
+projection reducer; replay never invokes the live execution loop. This
+supersedes the draft proposal to substitute replaying providers into the loop,
+which would unnecessarily depend on live policy and loop behavior.
+
+The complete ordered model request is hashed and classified at the highest
+level of its content, tool definitions, and metadata. Unlabeled data defaults
+to confidential. Artifact materialization fails closed until a policy-bound
+artifact resolver exists. Provider response bytes are quarantined inside the
+adapter boundary while return-path egress is evaluated, before the loop,
+durable content log, or tools receive them. This does not prevent bytes from
+arriving at the adapter's network connection.
+
+Tool execution receives a separately persisted execution-policy verdict.
+Approval, transformation, and redaction requirements fail closed until their
+respective implementations exist. Tool results are classified again when
+building the next turn's request. Observation occurs at direct execution call
+sites, independently of the turn-scoped sink, which only persists loop events.
+
+The initial lifecycle transitions and final result/terminal transitions each
+append atomically. Cancellation finalizes through a bounded independent store
+context. Store failures never trigger effect retries or fabricated terminal
+state; callers receive the last readable committed projection and the error.
+Duplicate workload IDs conflict before execution. Restart continuation remains
+a separate Phase 1 gate; `Replay` is read-only.
 
 ## Delivery sequence
 
@@ -42,7 +65,10 @@ are recorded here rather than made silently:
 
 | Type | Change | Reason |
 |---|---|---|
-| _(to be filled during implementation)_ | | |
+| `Engine`, `EngineRequest` | Add public composition entry point and dependencies | Run one bounded workload through existing contracts |
+| `WorkloadProjection` | Add validated `Execution` audit records | Rebuild policy, routing, loop activity, and result from the store |
+| `LoopSink`, `LoopEvent`, `LoopRequest` | Unchanged | Compose through selector, provider and tool wrappers, and the existing sink |
+| `Observer`, `Record` | Additive under 0009 | Observe without influencing execution decisions |
 
 ## Sequencing note
 

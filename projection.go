@@ -60,6 +60,7 @@ type WorkloadProjection struct {
 	Version   uint64
 	Workload  Workload
 	Steps     map[ID]Step
+	Execution []ExecutionRecord
 }
 
 func NewWorkloadProjection(aggregate AggregateRef) (*WorkloadProjection, error) {
@@ -159,6 +160,8 @@ func (p *WorkloadProjection) Apply(event Event) error {
 		err = p.applyStepCreated(event)
 	case EventTypeStepTransitioned:
 		err = p.applyStepTransitioned(event)
+	case EventTypeExecutionRecorded:
+		err = p.applyExecutionRecorded(event)
 	default:
 		err = fmt.Errorf("unknown event type %q", event.Type)
 	}

@@ -38,17 +38,17 @@
 - [x] Implement the provider-neutral turn and tool loop.
 - [x] Add Anthropic Messages adapter and conformance tests.
 - [x] Add OpenAI-compatible adapter and conformance tests.
-- [ ] Reword the `SECURITY.md` sandbox sentence to state planned rather than
+- [x] Reword the `SECURITY.md` sandbox sentence to state planned rather than
   current behavior.
 - [ ] Document `ModelRequest.AutomaticCompaction` and `ModelEvent.Retryable` as
   declared but not yet enforced, and assert in `providertest` that nothing
   depends on either.
 - [ ] Tag `v0.1.0` once the two items above have landed.
-- [ ] Note the patched-toolchain requirement in the README so the `go` directive
+- [x] Note the patched-toolchain requirement in the README so the `go` directive
   is not mistaken for a misconfiguration.
-- [ ] Add the telemetry and audit contract
+- [x] Add the telemetry and audit contract
   ([0009](../0009-telemetry-audit/spec.md)).
-- [ ] Add the execution engine that composes policy, routing, the event store,
+- [x] Add the execution engine that composes policy, routing, the event store,
   and the loop ([0010](../0010-execution-engine/spec.md)).
 - [ ] Add read, write, edit, and command tools
   ([0011](../0011-tool-suite/spec.md)).
@@ -62,6 +62,11 @@
 
 ## Phase 2: distributed workers
 
+- [ ] After the Phase 1 acceptance gate passes, including 0010, carve Phase 2
+  into its own numbered specification with requirements, plan, tasks, and
+  acceptance criteria; link it from this ledger, the core plan, and the spec
+  index. Preserve the outbound-worker gate without an inbound home port or
+  a VPN into the personal network.
 - [ ] Define and version the protobuf worker protocol.
 - [ ] Implement enrollment, authentication, capabilities, and heartbeats.
 - [ ] Implement capacity, leasing, acknowledgement, cancellation, and drain.

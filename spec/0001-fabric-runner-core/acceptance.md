@@ -71,7 +71,8 @@ Local verification on 2026-09-07:
 ## Phase 2 gate
 
 - A personal-network worker connects outbound, receives a lease, streams
-  events, and completes an assignment without an inbound network port.
+  events, and completes an assignment using a model on the personal network
+  without an inbound home network port or a VPN into the personal network.
 - Worker disconnect and reconnect preserve attempt identity and durable state.
 - An expired idempotent assignment can be retried; an uncertain non-idempotent
   assignment cannot be retried without reconciliation or approval.

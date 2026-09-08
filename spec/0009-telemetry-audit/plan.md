@@ -2,7 +2,7 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Design
 
@@ -39,6 +39,16 @@ first; the engine adopts it.
 
 ## Open questions
 
-- Whether `Record` carries a timestamp or the observer assigns one. Assigning
-  at the observer is cheaper and avoids a clock dependency in the core, but
-  makes ordering across observers undefined.
+Resolved: exporters assign receipt timestamps; the record includes a
+per-execution monotonic sequence. Concurrent delivery may arrive out of order.
+
+The isolation boundary starts callbacks asynchronously, sets a bounded context,
+recovers panics, and ignores errors. A process-wide limit of 64 in-flight
+callbacks bounds resource use even when an exporter ignores cancellation.
+Saturation drops operational observations, never durable events. Go cannot
+forcibly terminate arbitrary observer code; such callbacks occupy a slot until
+they return. A nil observer allocates no observation dispatcher.
+
+Record construction removes content and all free-form attribute values at or
+above confidential. Identifier, byte count and SHA-256 remain. The emission
+boundary repeats construction so hand-built records cannot bypass filtering.

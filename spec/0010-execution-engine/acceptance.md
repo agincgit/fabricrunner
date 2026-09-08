@@ -2,7 +2,7 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** Draft
+**Status:** Implemented
 
 Each criterion below is the name of a test to be written before the
 implementation exists.
@@ -35,8 +35,32 @@ The implementation is accepted when:
   workload in a permitted terminal state with that dimension recorded;
 - `TestEngineRunsWithoutObserver` — the engine produces an identical event
   stream with and without an observer attached; and
+- `TestStoreFailurePreventsProviderCall`, `TestStoreFailurePreventsToolCall`,
+  and `TestDuplicateRunNeverRepeatsEffects` — failed persistence and duplicate
+  submissions cannot repeat or initiate external effects (FR-ENG-010); and
 - build, vet, static analysis, race tests, and leak scanning pass.
 
 ## Evidence
 
-Pending implementation.
+Local verification on 2026-09-07:
+
+- All named engine criteria pass in `engine_test.go` and
+  `engine_boundary_test.go`. Token input/output, cost, model calls, tool calls,
+  and wall time each have a real loop exhaustion scenario. No child steps are
+  created; delegation and advance spend reservations remain later work.
+- `TestEngineWithOpenAICompatibleAdapter` uses the HTTP adapter and SQLite,
+  verifies committed turn state while the HTTP request is in flight, then
+  replays with the test server shut down. No paid provider is contacted.
+- SQLite close/reopen reproduces the complete terminal projection, including
+  routing, policy, messages, usage, and the result.
+- Confidential tool output prevents the next cloud turn; denied remote model
+  content never reaches the durable content log.
+- Malformed execution records are rejected without projection mutation.
+- Windows: `go test ./...`, `go build ./...`, and `go vet ./...` pass on Go
+  1.25.13. Ubuntu/WSL: `GOTOOLCHAIN=go1.25.13 go test ./... -race -count=1` passes.
+- Staticcheck v0.8.1 passes; Gitleaks v8.30.1 finds no leaks. Govulncheck reports
+  no reachable vulnerabilities.
+
+Local implementation acceptance does not complete the Phase 1 gate. Built-in
+tools, sandboxing, approvals, compaction, and restart continuation remain
+outstanding. Replay is read-only. The outbound worker remains behind Phase 1.

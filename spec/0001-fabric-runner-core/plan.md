@@ -37,6 +37,19 @@ a managed model and receives the result in one replayable workload.
 
 ## Phase 2: distributed workers
 
+Phase 1 must pass its acceptance gate before Phase 2 begins, including the
+execution engine composition in [0010](../0010-execution-engine/spec.md).
+When Phase 2 becomes the next delivery phase, carve it into its own numbered
+specification with `spec.md`, `plan.md`, `tasks.md`, and `acceptance.md`, as
+done for 0009–0015, and link it from this plan, the task ledger, and the spec
+index. Assign the next available number at that time.
+
+The outbound personal-network worker remains a committed Phase 2 requirement.
+Reaching models through that worker must require neither an inbound home
+network port nor a VPN into the personal network. This is an infrastructure
+dependency and must be preserved in the numbered specification and its
+acceptance gate; any proposed change must explicitly revisit that dependency.
+
 1. Define versioned protobuf and bidirectional gRPC contracts.
 2. Add worker enrollment, capabilities, health, capacity, leases, cancellation,
    drain, and revocation.

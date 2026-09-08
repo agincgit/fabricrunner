@@ -46,6 +46,9 @@ starting with the
 - a single-node `Engine` composing policy, routing, storage, providers, tools,
   and the turn loop, with a durable audit of each model turn;
 - optional exporter-neutral observation with bounded callback isolation;
+- rooted tools with Linux bubblewrap confinement and an experimental macOS profile;
+- attributed approvals, pre-spend reservations and explicit auditable compaction;
+- restart continuation from committed turn checkpoints, with uncertain calls denied;
 - execution and data-egress policy contracts;
 - deterministic eligibility and routing;
 - provider-neutral model/tool turns with schemas, budgets, cancellation, and

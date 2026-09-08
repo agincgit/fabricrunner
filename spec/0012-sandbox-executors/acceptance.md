@@ -2,7 +2,7 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** Draft
+**Status:** In Progress
 
 Each criterion below is the name of a test to be written before the
 implementation exists.
@@ -30,4 +30,20 @@ The implementation is accepted when:
 
 ## Evidence
 
-Pending implementation.
+See the dated evidence and outstanding native macOS gate below.
+
+## Local acceptance evidence — 2026-09-08 UTC
+
+| Requirement | Observable evidence | Result |
+|---|---|---|
+| FR-BOX-001, FR-BOX-002 | Default and failed-establishment denial tests | Pass |
+| FR-BOX-003 | `TestPolicyCanEvaluateSandboxCapability` | Pass |
+| FR-BOX-005, FR-BOX-007 (Linux) | Actual outside-write, network and session-escape attempts | Pass under WSL Ubuntu |
+| FR-BOX-006 | Unsupported-platform denial names Windows | Pass |
+| FR-BOX-008 | `TestSandboxLifecycleRecorded` checks durable records and observer outcomes | Pass |
+| FR-BOX-004, FR-BOX-007 (macOS) | Darwin/arm64 cross-build | Build passes; native behavioral acceptance NOT RUN |
+
+0012 remains In Progress. A macOS host is required for native confinement,
+process escape, cleanup, race and static-analysis evidence. The initial Seatbelt
+profile denies child creation, unlike Linux's PID-namespace-backed executor.
+The no-inbound-port Phase 2 work remains sequenced after the Phase 1 gate.

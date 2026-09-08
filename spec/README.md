@@ -50,10 +50,10 @@ replacement.
 | [0008](0008-anthropic-messages-adapter/spec.md) | Anthropic Messages adapter | Implemented |
 | [0009](0009-telemetry-audit/spec.md) | Telemetry and audit contract | Implemented |
 | [0010](0010-execution-engine/spec.md) | Execution engine | Implemented |
-| [0011](0011-tool-suite/spec.md) | Tool suite | Draft |
-| [0012](0012-sandbox-executors/spec.md) | Sandbox executors | Draft |
-| [0013](0013-approval-budgets-lifecycle/spec.md) | Approval gates, budgets, and lifecycle | Draft |
-| [0014](0014-context-compaction/spec.md) | Context accounting and auditable compaction | Draft |
+| [0011](0011-tool-suite/spec.md) | Tool suite | Implemented |
+| [0012](0012-sandbox-executors/spec.md) | Sandbox executors | In Progress |
+| [0013](0013-approval-budgets-lifecycle/spec.md) | Approval gates, budgets, and lifecycle | Implemented |
+| [0014](0014-context-compaction/spec.md) | Context accounting and auditable compaction | Implemented |
 | [0015](0015-eval-harness/spec.md) | Eval harness | Draft |
 | [0016](0016-outbound-personal-worker/spec.md) | Outbound personal-network model worker | Draft |
 

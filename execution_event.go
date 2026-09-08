@@ -14,6 +14,13 @@ const (
 	ExecutionRoutingDecided  ExecutionStage = "routing"
 	ExecutionLoopEvent       ExecutionStage = "loop"
 	ExecutionFinished        ExecutionStage = "finished"
+	ExecutionSandbox         ExecutionStage = "sandbox"
+	ExecutionApproval        ExecutionStage = "approval"
+	ExecutionBudget          ExecutionStage = "budget"
+	ExecutionCleanup         ExecutionStage = "cleanup"
+	ExecutionCompaction      ExecutionStage = "compaction"
+	ExecutionRequest         ExecutionStage = "request"
+	ExecutionResumed         ExecutionStage = "resumed"
 )
 
 type RoutingRecord struct {
@@ -24,16 +31,22 @@ type RoutingRecord struct {
 // ExecutionRecord is part of the durable workload stream, never telemetry.
 // A turn number binds policy, placement and loop activity to one model turn.
 type ExecutionRecord struct {
-	StepID         ID               `json:"step_id"`
-	Turn           int              `json:"turn"`
-	Stage          ExecutionStage   `json:"stage"`
-	Classification Classification   `json:"classification"`
-	Manifest       *ContentManifest `json:"manifest,omitempty"`
-	Verdict        *PolicyVerdict   `json:"verdict,omitempty"`
-	Routing        *RoutingRecord   `json:"routing,omitempty"`
-	Loop           *LoopEvent       `json:"loop,omitempty"`
-	Result         *LoopResult      `json:"result,omitempty"`
-	FailureCode    string           `json:"failure_code,omitempty"`
+	StepID         ID                `json:"step_id"`
+	Turn           int               `json:"turn"`
+	Stage          ExecutionStage    `json:"stage"`
+	Classification Classification    `json:"classification"`
+	Manifest       *ContentManifest  `json:"manifest,omitempty"`
+	Verdict        *PolicyVerdict    `json:"verdict,omitempty"`
+	Routing        *RoutingRecord    `json:"routing,omitempty"`
+	Loop           *LoopEvent        `json:"loop,omitempty"`
+	Result         *LoopResult       `json:"result,omitempty"`
+	FailureCode    string            `json:"failure_code,omitempty"`
+	Sandbox        *SandboxEvent     `json:"sandbox,omitempty"`
+	Approval       *ApprovalRecord   `json:"approval,omitempty"`
+	Budget         *BudgetRecord     `json:"budget,omitempty"`
+	Cleanup        *CleanupRecord    `json:"cleanup,omitempty"`
+	Compaction     *CompactionRecord `json:"compaction,omitempty"`
+	RequestSHA256  string            `json:"request_sha256,omitempty"`
 }
 
 func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
@@ -77,7 +90,7 @@ func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
 		return err
 	}
 	count := 0
-	for _, set := range []bool{r.Verdict != nil, r.Routing != nil, r.Loop != nil, r.Result != nil} {
+	for _, set := range []bool{r.Verdict != nil, r.Routing != nil, r.Loop != nil, r.Result != nil, r.Sandbox != nil, r.Approval != nil, r.Budget != nil, r.Cleanup != nil, r.Compaction != nil, r.RequestSHA256 != ""} {
 		if set {
 			count++
 		}
@@ -86,6 +99,75 @@ func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
 		return errors.New("execution record must have exactly one payload")
 	}
 	switch r.Stage {
+	case ExecutionRequest, ExecutionResumed:
+		if err := validateSHA256("request digest", r.RequestSHA256); err != nil {
+			return err
+		}
+	case ExecutionCompaction:
+		c := r.Compaction
+		if c == nil || c.FirstEvent < 1 || c.LastEvent < c.FirstEvent || c.LastEvent >= event.Sequence || c.BeforeTokens < 0 || c.AfterTokens < 0 || len(c.Inputs) == 0 {
+			return errors.New("invalid compaction range or counts")
+		}
+		if err := c.Model.Validate(); err != nil {
+			return err
+		}
+		if err := c.Usage.Validate(); err != nil {
+			return err
+		}
+		if err := c.Summary.Validate(); err != nil {
+			return err
+		}
+		for _, message := range append(CloneMessages(c.Inputs), c.Summary) {
+			if err := message.Validate(); err != nil {
+				return err
+			}
+			for _, part := range message.Content {
+				if classificationRank(part.Classification) > classificationRank(r.Classification) {
+					return errors.New("compaction classification mismatch")
+				}
+			}
+		}
+	case ExecutionApproval:
+		if r.Approval == nil || r.Approval.Decision.Actor == "" {
+			return errors.New("approval actor required")
+		}
+		if err := r.Approval.Request.Scope.Validate(); err != nil {
+			return err
+		}
+		if r.Approval.Request.Scope.WorkloadID != p.Workload.ID || r.Approval.Request.Scope.StepID != r.StepID {
+			return errors.New("approval scope mismatch")
+		}
+		if err := r.Approval.Request.Manifest.Validate(); err != nil {
+			return err
+		}
+		if class, _ := r.Approval.Request.Manifest.EffectiveClassification(); class == ClassSecret {
+			return errors.New("secret approval forbidden")
+		}
+	case ExecutionBudget:
+		if r.Budget == nil {
+			return errors.New("budget payload required")
+		}
+		if err := r.Budget.Reserved.Validate(); err != nil {
+			return err
+		}
+		switch r.Budget.Dimension {
+		case "", "input_tokens", "output_tokens", "cost", "steps", "model_calls", "tool_calls", "wall_time":
+		default:
+			return errors.New("invalid budget dimension")
+		}
+	case ExecutionCleanup:
+		if r.Cleanup == nil || r.Cleanup.Resource == "" {
+			return errors.New("cleanup resource required")
+		}
+	case ExecutionSandbox:
+		if r.Sandbox == nil || r.Sandbox.Backend == "" {
+			return errors.New("sandbox record requires backend")
+		}
+		switch r.Sandbox.Phase {
+		case "established", "denied", "teardown", "execution_completed", "execution_failed":
+		default:
+			return errors.New("invalid sandbox lifecycle phase")
+		}
 	case ExecutionPolicyEvaluated:
 		if r.Verdict == nil || r.Manifest == nil {
 			return errors.New("policy record requires verdict and manifest")
@@ -142,7 +224,7 @@ func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
 			}
 		}
 		switch r.Loop.Type {
-		case LoopEventTurnStarted, LoopEventModel, LoopEventMessageAppended, LoopEventToolStarted, LoopEventToolCompleted, LoopEventStopped:
+		case LoopEventTurnStarted, LoopEventModel, LoopEventMessageAppended, LoopEventToolStarted, LoopEventToolCompleted, LoopEventStopped, LoopEventCheckpoint:
 		default:
 			return errors.New("unknown recorded loop event")
 		}
@@ -156,6 +238,20 @@ func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
 		}
 		if r.Loop.Type == LoopEventMessageAppended && r.Loop.Message == nil {
 			return errors.New("message event payload missing")
+		}
+		if r.Loop.Type == LoopEventCheckpoint {
+			c := r.Loop.Checkpoint
+			if c == nil || previousLoop == nil || previousLoop.Type != LoopEventMessageAppended || previousLoop.Message == nil || previousLoop.Message.Role != RoleTool || c.ModelCalls != r.Turn || c.ToolCalls < 1 || c.Stop != StopToolUse {
+				return errors.New("invalid turn checkpoint")
+			}
+			if err := c.Usage.Validate(); err != nil {
+				return err
+			}
+			for _, message := range c.Messages {
+				if err := message.Validate(); err != nil {
+					return err
+				}
+			}
 		}
 		if (r.Loop.Type == LoopEventToolStarted || r.Loop.Type == LoopEventToolCompleted) && r.Loop.ToolCall == nil {
 			return errors.New("tool event payload missing")

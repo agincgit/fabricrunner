@@ -2,7 +2,7 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Design
 
@@ -27,3 +27,13 @@ to the 0012 executor, which is the only component that can start a process.
 
 Ordered after 0010 so the tools bind to settled engine shapes, and paired with
 0012 because FR-TOOL-004 cannot be satisfied without the sandbox contract.
+
+## Local execution design
+
+See [0012 implementation decisions](../0012-sandbox-executors/implementation-notes.md).
+Read uses traversal-resistant `os.Root`; writes and edits use the same rooted
+operations inside the trusted `fabricrunner-tool` helper under confinement.
+Commands pass argument vectors unchanged. Outputs are bounded and carry an
+explicit truncation flag and conservative partial-effect metadata. The engine
+records sandbox lifecycle and completed/failed execution metadata durably,
+including after cancellation using a bounded finalization context.

@@ -2,7 +2,7 @@
 
 **Specification:** [spec.md](spec.md)
 
-**Status:** Draft
+**Status:** Implemented
 
 ## Design
 
@@ -26,3 +26,14 @@ release sequence.
 3. Enforce each budget dimension before spend.
 4. Implement cancellation propagation with a bounded interval.
 5. Implement uniform cleanup across every termination path.
+
+## Local evidence and signature changes (2026-09-08 UTC)
+
+`go test ./...` on Windows and `GOTOOLCHAIN=go1.25.13 go test ./... -race
+-count=1` under WSL Ubuntu pass. Tests cover pre-spend denial, missing estimator,
+all token/cost/total-step admission dimensions, approval denial and timeout,
+metadata-only approval requests, read-only replay, and cleanup on every engine
+termination path. Existing model-call, tool-call and wall-time tests also pass.
+Full Phase 1 acceptance, including restart continuation, remains open.
+
+The concrete design is recorded in [implementation notes](implementation-notes.md).

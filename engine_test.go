@@ -80,11 +80,11 @@ func engineFixture(t *testing.T) (*fr.Engine, fr.EngineRequest, *engineProvider)
 	r := fr.EngineRequest{
 		WorkloadID: id(), SessionID: id(), StepID: id(), AttemptID: id(), Goal: "bounded workload", SourceZone: fr.ZonePersonal,
 		Classification: fr.ClassPublic, ModelOutputClassification: fr.ClassPublic,
-		Budget:     fr.Budget{MaxInputTokens: 100, MaxOutputTokens: 100, MaxModelCalls: 3, MaxToolCalls: 3, MaxCost: 100, MaxWallTime: time.Second},
+		Budget:     fr.Budget{MaxSteps: 1, MaxInputTokens: 100, MaxOutputTokens: 100, MaxModelCalls: 3, MaxToolCalls: 3, MaxCost: 100, MaxWallTime: time.Second},
 		Initial:    fr.ModelRequest{Model: fr.ModelRef{Provider: "test", Model: "model"}, ToolChoice: fr.ToolChoice{Mode: fr.ToolChoiceAuto}, Messages: []fr.Message{{Role: fr.RoleUser, Content: []fr.ContentPart{{Type: fr.ContentText, Classification: fr.ClassPublic, Text: "start"}}}}},
 		Candidates: []fr.RoutingCandidate{{ID: id(), Zone: fr.ZonePersonal, Authenticated: true, Compatible: true, Healthy: true, AvailableSlots: 1, AvailableAt: time.Unix(1, 0), Model: fr.ModelDescriptor{Ref: fr.ModelRef{Provider: "test", Model: "model"}, Capabilities: fr.ModelCapabilities{ToolUse: fr.ToolUseNative, MaxOutputTokens: 1000}}}},
 	}
-	return &fr.Engine{Store: memory.New(), Loop: loop.Engine{}, ExecutionPolicy: allowEnginePolicy{}, DataEgressPolicy: baseline.Policy{}, Router: deterministic.Router{}, Providers: map[string]fr.Provider{"test": p}}, r, p
+	return &fr.Engine{SpendEstimator: fixedSpend{bound: fr.SpendBound{InputTokens: 20, OutputTokens: 20, Cost: 20}}, Store: memory.New(), Loop: loop.Engine{}, ExecutionPolicy: allowEnginePolicy{}, DataEgressPolicy: baseline.Policy{}, Router: deterministic.Router{}, Providers: map[string]fr.Provider{"test": p}}, r, p
 }
 func engineEvents(t *testing.T, e *fr.Engine, r fr.EngineRequest) []fr.Event {
 	t.Helper()
@@ -380,7 +380,8 @@ func TestObserverCoversFullPath(t *testing.T) {
 }
 func TestLoopSinkUnchanged(t *testing.T) {
 	// The public loop remains independently usable; its own suite exercises sinks.
-	if reflect.TypeFor[fr.LoopSink]().NumMethod() != 1 || reflect.TypeFor[fr.LoopEvent]().NumField() != 10 {
+	// Phase 1 recovery adds a checkpoint payload; the sink method is unchanged.
+	if reflect.TypeFor[fr.LoopSink]().NumMethod() != 1 {
 		t.Fatal("turn-scoped contract changed")
 	}
 }

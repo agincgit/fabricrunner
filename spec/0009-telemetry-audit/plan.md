@@ -52,3 +52,12 @@ they return. A nil observer allocates no observation dispatcher.
 Record construction removes content and all free-form attribute values at or
 above confidential. Identifier, byte count and SHA-256 remain. The emission
 boundary repeats construction so hand-built records cannot bypass filtering.
+
+## Lifecycle observation clarification
+
+0012 lifecycle events are emitted with the observer's own bounded timeout,
+independent of a just-completed cleanup context. Otherwise the cleanup context
+could be canceled before the exporter goroutine is scheduled. Durable audit
+still commits first, and observation remains best effort with the same global
+in-flight cap. The sandbox acceptance test checks both the committed events and
+cooperative observer delivery.

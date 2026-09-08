@@ -53,13 +53,13 @@
   ([0009](../0009-telemetry-audit/spec.md)).
 - [x] Add the execution engine that composes policy, routing, the event store,
   and the loop ([0010](../0010-execution-engine/spec.md)).
-- [ ] Add read, write, edit, and command tools
+- [x] Add read, write, edit, and command tools
   ([0011](../0011-tool-suite/spec.md)).
 - [ ] Add macOS Seatbelt and Linux bubblewrap executors
   ([0012](../0012-sandbox-executors/spec.md)).
-- [ ] Add approval gates, budgets, cancellation, and cleanup
+- [x] Add approval gates, budgets, cancellation, and cleanup
   ([0013](../0013-approval-budgets-lifecycle/spec.md)).
-- [ ] Add context accounting and auditable compaction
+- [x] Add context accounting and auditable compaction
   ([0014](../0014-context-compaction/spec.md)).
 - [ ] Pass the Phase 1 end-to-end acceptance scenario.
 

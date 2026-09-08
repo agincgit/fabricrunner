@@ -77,3 +77,32 @@ and compaction. Those four components will bind to whatever shapes the engine
 settles on. Building them first and then discovering the composition needs
 different shapes is the expensive ordering; the adapters already built are as
 much accumulated surface as should be absorbed before this lands.
+
+## 0013 signature additions
+
+| Type | Change | Reason |
+|---|---|---|
+| `Engine` | `Approver`, `ApprovalTimeout`, `SpendEstimator` | Approval gates and conservative pre-spend admission |
+| `Budget` | `MaxSteps` | Bound total steps including the root; engine requests require at least one |
+| `ExecutionRecord` | Approval, budget and cleanup payloads | Durable decisions before effects and auditable cleanup |
+
+A spend estimator is now required for live engine calls. Its supplied bounds
+must cover provider defaults when `MaxOutputTokens` is unset. The engine does
+not mutate the authorized request after policy hashing. This supersedes the
+0010 post-report-only token/cost behavior; the low-level loop still validates
+reported usage independently.
+
+## Recovery and compaction supersession
+
+The read-only `Replay` contract remains unchanged. Live continuation is now
+`Resume`, specified in [recovery plan](recovery-plan.md). New fields are
+`LoopRequest.Continuation`, `LoopEvent.Checkpoint`, `TurnSelection.Messages`,
+`ModelRequest.AutomaticCompaction`, and `Engine.ContextCounter`. These supersede
+the original signature table's statement that every loop data type stayed
+unchanged. The `LoopSink` method itself is unchanged.
+
+A turn checkpoint carries the ordered history and cumulative loop usage/call
+counts. Compaction records carry their own usage, which the engine includes in
+the final total. New reservations after a checkpoint invalidate that recovery
+boundary, including reservations for compaction. Mid-call work is never retried
+from an older checkpoint.

@@ -109,11 +109,12 @@ func (p ContentPart) Validate() error {
 }
 
 type ToolDefinition struct {
-	Name         string
-	Description  string
-	InputSchema  json.RawMessage
-	OutputSchema json.RawMessage
-	Strict       bool
+	SideEffecting bool
+	Name          string
+	Description   string
+	InputSchema   json.RawMessage
+	OutputSchema  json.RawMessage
+	Strict        bool
 }
 
 func (t ToolDefinition) Validate() error {
@@ -165,14 +166,15 @@ type OutputConstraint struct {
 }
 
 type ModelRequest struct {
-	Model           ModelRef
-	Messages        []Message
-	Tools           []ToolDefinition
-	ToolChoice      ToolChoice
-	Output          *OutputConstraint
-	MaxOutputTokens int
-	Metadata        map[string]string
-	Extension       map[string]json.RawMessage
+	AutomaticCompaction bool
+	Model               ModelRef
+	Messages            []Message
+	Tools               []ToolDefinition
+	ToolChoice          ToolChoice
+	Output              *OutputConstraint
+	MaxOutputTokens     int
+	Metadata            map[string]string
+	Extension           map[string]json.RawMessage
 }
 
 func (r ModelRequest) Validate() error {

@@ -54,6 +54,10 @@ func (Engine) Run(
 	loopCtx, cancel := context.WithTimeoutCause(ctx, request.Budget.MaxWallTime, fabricrunner.ErrLoopBudgetExceeded)
 	defer cancel()
 	emitter := loopEmitter{sink: request.Sink}
+	if request.Continuation != nil {
+		result = request.Continuation.Result.Clone()
+		emitter.sequence = request.Continuation.Sequence
+	}
 	currentTurn := 0
 	currentModel := fabricrunner.ModelRef{}
 	defer func() {
@@ -85,7 +89,14 @@ func (Engine) Run(
 		return result, err
 	}
 	toolCallIDs := make(map[string]struct{})
-	for turn := 1; ; turn++ {
+	for _, message := range result.Messages {
+		for _, part := range message.Content {
+			if part.Type == fabricrunner.ContentToolCall {
+				toolCallIDs[part.ToolCallID] = struct{}{}
+			}
+		}
+	}
+	for turn := result.ModelCalls + 1; ; turn++ {
 		currentTurn = turn
 		if err := contextResult(loopCtx, ctx, &result); err != nil {
 			return result, err
@@ -117,6 +128,9 @@ func (Engine) Run(
 			return result, errors.New("selected provider name is empty")
 		}
 		currentModel = selection.Model
+		if selection.Messages != nil {
+			result.Messages = fabricrunner.CloneMessages(selection.Messages)
+		}
 		if err := emitter.emit(loopCtx, fabricrunner.LoopEvent{
 			Type: fabricrunner.LoopEventTurnStarted, Turn: turn, Model: selection.Model,
 		}); err != nil {
@@ -203,6 +217,10 @@ func (Engine) Run(
 		if err := emitter.emit(loopCtx, fabricrunner.LoopEvent{
 			Type: fabricrunner.LoopEventMessageAppended, Turn: turn, Model: selection.Model, Message: &toolMessage,
 		}); err != nil {
+			return result, err
+		}
+		checkpoint := result.Clone()
+		if err := emitter.emit(loopCtx, fabricrunner.LoopEvent{Type: fabricrunner.LoopEventCheckpoint, Turn: turn, Model: selection.Model, Checkpoint: &checkpoint}); err != nil {
 			return result, err
 		}
 	}

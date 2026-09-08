@@ -46,6 +46,7 @@ func (c Classification) Validate() error {
 type CostMicros int64
 
 type Budget struct {
+	MaxSteps        int           `json:"max_steps"`
 	MaxInputTokens  int64         `json:"max_input_tokens"`
 	MaxOutputTokens int64         `json:"max_output_tokens"`
 	MaxModelCalls   int           `json:"max_model_calls"`
@@ -56,7 +57,7 @@ type Budget struct {
 }
 
 func (b Budget) Validate() error {
-	if b.MaxInputTokens < 0 || b.MaxOutputTokens < 0 || b.MaxModelCalls < 0 ||
+	if b.MaxSteps < 0 || b.MaxInputTokens < 0 || b.MaxOutputTokens < 0 || b.MaxModelCalls < 0 ||
 		b.MaxToolCalls < 0 || b.MaxChildSteps < 0 || b.MaxCost < 0 || b.MaxWallTime < 0 {
 		return errors.New("budget values cannot be negative")
 	}

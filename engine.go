@@ -18,6 +18,10 @@ var ErrExecutionDenied = errors.New("execution not authorized")
 // Engine composes the public single-node contracts. Configure before calling
 // Run; dependencies must support concurrent calls if an Engine is shared.
 type Engine struct {
+	ContextCounter   ContextCounter
+	Approver         Approver
+	ApprovalTimeout  time.Duration
+	SpendEstimator   SpendEstimator
 	Store            EventStore
 	ExecutionPolicy  ExecutionPolicy
 	DataEgressPolicy DataEgressPolicy
@@ -57,6 +61,9 @@ func (e *Engine) Replay(ctx context.Context, id ID) (*WorkloadProjection, error)
 	return LoadWorkloadProjection(ctx, e.Store, AggregateRef{Type: WorkloadAggregateType, ID: id})
 }
 func (e *Engine) Run(ctx context.Context, request EngineRequest) (projection *WorkloadProjection, returnErr error) {
+	return e.run(ctx, request, false)
+}
+func (e *Engine) run(ctx context.Context, request EngineRequest, resume bool) (projection *WorkloadProjection, returnErr error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -115,7 +122,7 @@ func (e *Engine) Run(ctx context.Context, request EngineRequest) (projection *Wo
 	loopRequest = loopRequest.Clone()
 	s.request.Tools = loopRequest.Tools
 	for i := range loopRequest.Tools {
-		loopRequest.Tools[i].Handler = &engineToolHandler{run: s, handler: loopRequest.Tools[i].Handler}
+		loopRequest.Tools[i].Handler = &engineToolHandler{run: s, handler: loopRequest.Tools[i].Handler, sideEffecting: loopRequest.Tools[i].Definition.SideEffecting}
 	}
 	initial := []engineDraft{
 		{EventTypeWorkloadCreated, WorkloadCreatedPayload{SessionID: request.SessionID, Goal: request.Goal, Budget: request.Budget}},
@@ -125,13 +132,46 @@ func (e *Engine) Run(ctx context.Context, request EngineRequest) (projection *Wo
 		{EventTypeStepTransitioned, StepTransitionedPayload{StepID: request.StepID, From: StepReady, To: StepLeased}},
 		{EventTypeStepTransitioned, StepTransitionedPayload{StepID: request.StepID, From: StepLeased, To: StepRunning}},
 	}
-	if err := s.append(runCtx, initial...); err != nil {
+	digest, err := requestDigest(s.request)
+	if err != nil {
 		return nil, err
+	}
+	if resume {
+		checkpoint, deadline, err := s.restore(runCtx, digest)
+		if err != nil {
+			return nil, err
+		}
+		loopRequest.Continuation = checkpoint
+		var end context.CancelFunc
+		runCtx, end = context.WithDeadlineCause(runCtx, deadline, ErrLoopBudgetExceeded)
+		defer end()
+	} else {
+		initial = append(initial, engineDraft{EventTypeExecutionRecorded, ExecutionRecord{StepID: request.StepID, Stage: ExecutionRequest, Classification: request.Classification, RequestSHA256: digest}})
+		if err := s.append(runCtx, initial...); err != nil {
+			return nil, err
+		}
 	}
 	s.observe(ctx, RecordWorkload, "started")
 	s.observe(ctx, RecordStep, "started")
 	s.observe(ctx, RecordAttempt, "started")
-	result, runErr := e.Loop.Run(runCtx, loopRequest)
+	var result LoopResult
+	var runErr error
+	if !resume {
+		runErr = s.admit(runCtx)
+	}
+	if runErr == nil {
+		result, runErr = e.Loop.Run(runCtx, loopRequest)
+	}
+	runErr = errors.Join(runErr, s.cleanup(ctx))
+	if s.budgetDimension != "" {
+		result.BudgetExceeded = s.budgetDimension
+	}
+	result.ModelCalls += s.extraCalls
+	result.Usage.InputTokens += s.compactionUsage.InputTokens
+	result.Usage.OutputTokens += s.compactionUsage.OutputTokens
+	result.Usage.CacheReadTokens += s.compactionUsage.CacheReadTokens
+	result.Usage.CacheWriteTokens += s.compactionUsage.CacheWriteTokens
+	result.Usage.Cost += s.compactionUsage.Cost
 	if result.Stop == StopCancelled {
 		runErr = errors.Join(runErr, context.Canceled)
 	}
@@ -163,7 +203,7 @@ func (e *Engine) Run(ctx context.Context, request EngineRequest) (projection *Wo
 		}
 	}
 	finish := ExecutionRecord{StepID: request.StepID, Stage: ExecutionFinished, Classification: resultClass, Result: &result, FailureCode: failure}
-	err := s.append(finalCtx, engineDraft{EventTypeExecutionRecorded, finish}, engineDraft{EventTypeStepTransitioned, StepTransitionedPayload{StepID: request.StepID, From: StepRunning, To: stepState}}, engineDraft{EventTypeWorkloadTransitioned, WorkloadTransitionedPayload{From: WorkloadRunning, To: state}})
+	err = s.append(finalCtx, engineDraft{EventTypeExecutionRecorded, finish}, engineDraft{EventTypeStepTransitioned, StepTransitionedPayload{StepID: request.StepID, From: StepRunning, To: stepState}}, engineDraft{EventTypeWorkloadTransitioned, WorkloadTransitionedPayload{From: WorkloadRunning, To: state}})
 	if err == nil {
 		s.observe(ctx, RecordAttempt, string(state))
 		s.observe(ctx, RecordStep, string(state))
@@ -178,6 +218,11 @@ type engineDraft struct {
 	payload any
 }
 type engineRun struct {
+	stepApproved        bool
+	compactionUsage     Usage
+	extraCalls          int
+	reserved            SpendBound
+	budgetDimension     string
 	engine              *Engine
 	request             EngineRequest
 	aggregate           AggregateRef
@@ -235,7 +280,10 @@ func (s *engineRun) observe(ctx context.Context, kind RecordKind, outcome string
 	}
 	// These attributes are engine constants, never model content or policy reasons.
 	r, _ := NewRecord(RecordInput{Kind: kind, WorkloadID: s.request.WorkloadID, StepID: s.request.StepID, AttemptID: s.request.AttemptID, Sequence: s.observationSequence.Add(1), Classification: s.request.Classification, Attributes: map[AttributeKey]string{AttrOutcome: outcome}})
-	s.observation.Emit(ctx, r)
+	// Lifecycle records often originate from cleanup contexts that end before
+	// the exporter goroutine is scheduled. Observation supplies its own bounded
+	// timeout, so retain delivery opportunity after the execution context ends.
+	s.observation.Emit(context.WithoutCancel(ctx), r)
 }
 func (s *engineRun) record(ctx context.Context, r ExecutionRecord) error {
 	r.StepID = s.request.StepID
@@ -256,10 +304,25 @@ func (s *engineRun) recordPolicy(ctx context.Context, turn int, manifest Content
 	return nil
 }
 func (s *engineRun) SelectTurn(ctx context.Context, turn TurnContext) (TurnSelection, error) {
-	modelRequest := CloneModelRequest(s.request.Initial)
+	if turn.Turn+s.extraCalls > s.request.Budget.MaxModelCalls {
+		return TurnSelection{}, s.budgetFailure(ctx, turn.Turn, "model_calls")
+	}
+	messages, err := s.prepareContext(ctx, turn)
+	if err != nil {
+		return TurnSelection{}, err
+	}
+	if messages != nil {
+		turn.Messages = messages
+	}
+	selection, err := s.selectPlacement(ctx, turn, s.request.Initial, s.request.Tools)
+	selection.Messages = messages
+	return selection, err
+}
+func (s *engineRun) selectPlacement(ctx context.Context, turn TurnContext, initial ModelRequest, tools []ToolBinding) (TurnSelection, error) {
+	modelRequest := CloneModelRequest(initial)
 	modelRequest.Messages = CloneMessages(turn.Messages)
 	modelRequest.Tools = nil
-	for _, binding := range s.request.Tools {
+	for _, binding := range tools {
 		modelRequest.Tools = append(modelRequest.Tools, binding.Definition)
 	}
 	manifest, err := modelManifest(modelRequest, s.request.Classification)
@@ -284,6 +347,13 @@ func (s *engineRun) SelectTurn(ctx context.Context, turn TurnContext) (TurnSelec
 			return TurnSelection{}, err
 		}
 		candidate.ExecutionVerdict = v
+		if v.RequiresApproval() {
+			v, err = s.resolveApproval(ctx, turn.Turn, manifest, v)
+			if err != nil {
+				return TurnSelection{}, err
+			}
+			candidate.ExecutionVerdict = v
+		}
 		_ = policyErr // A failed evaluator supplies a persisted fail-closed verdict.
 		candidate.EgressVerdict = nil
 		if candidate.Zone != s.request.SourceZone {
@@ -295,6 +365,13 @@ func (s *engineRun) SelectTurn(ctx context.Context, turn TurnContext) (TurnSelec
 				return TurnSelection{}, err
 			}
 			candidate.EgressVerdict = &v
+			if v.RequiresApproval() {
+				v, err = s.resolveApproval(ctx, turn.Turn, manifest, v)
+				if err != nil {
+					return TurnSelection{}, err
+				}
+				candidate.EgressVerdict = &v
+			}
 		}
 		routing.Candidates = append(routing.Candidates, candidate)
 	}
@@ -315,7 +392,18 @@ func (s *engineRun) SelectTurn(ctx context.Context, turn TurnContext) (TurnSelec
 			if provider == nil {
 				return TurnSelection{}, fmt.Errorf("provider %q is unavailable", candidate.Model.Ref.Provider)
 			}
-			return TurnSelection{Provider: &engineProvider{run: s, provider: provider, zone: candidate.Zone, turn: turn.Turn}, Model: candidate.Model.Ref}, nil
+			modelRequest.Model = candidate.Model.Ref
+			if s.engine.Approver != nil && !s.stepApproved {
+				if err := s.approve(ctx, turn.Turn, manifest, candidate.ExecutionVerdict.Scope); err != nil {
+					return TurnSelection{}, err
+				}
+				s.stepApproved = true
+			}
+			bound, err := s.reserve(ctx, turn.Turn, modelRequest, candidate.Model)
+			if err != nil {
+				return TurnSelection{}, err
+			}
+			return TurnSelection{Provider: &engineProvider{run: s, provider: provider, zone: candidate.Zone, turn: turn.Turn, bound: bound}, Model: candidate.Model.Ref}, nil
 		}
 	}
 	return TurnSelection{}, errors.New("selected candidate unavailable")
@@ -347,6 +435,7 @@ func higherClassification(a, b Classification) Classification {
 }
 
 type engineProvider struct {
+	bound    SpendBound
 	run      *engineRun
 	provider Provider
 	zone     Zone
@@ -367,10 +456,12 @@ func (p *engineProvider) Stream(ctx context.Context, r ModelRequest) (ModelStrea
 	if stream == nil {
 		return nil, errors.New("provider returned nil stream")
 	}
-	return &engineModelStream{ModelStream: stream, run: p.run, ctx: ctx, zone: p.zone, turn: p.turn}, nil
+	return &engineModelStream{ModelStream: stream, run: p.run, ctx: ctx, zone: p.zone, turn: p.turn, bound: p.bound}, nil
 }
 
 type engineModelStream struct {
+	bound SpendBound
+	used  SpendBound
 	ModelStream
 	run  *engineRun
 	ctx  context.Context
@@ -384,6 +475,27 @@ func (s *engineModelStream) Recv(ctx context.Context) (ModelEvent, error) {
 	event, err := s.ModelStream.Recv(ctx)
 	if err != nil {
 		return event, err
+	}
+	if event.Usage != nil {
+		u := event.Usage
+		if err := u.Validate(); err != nil {
+			return ModelEvent{}, err
+		}
+		dimension := ""
+		switch {
+		case u.InputTokens > s.bound.InputTokens-s.used.InputTokens:
+			dimension = "input_tokens"
+		case u.OutputTokens > s.bound.OutputTokens-s.used.OutputTokens:
+			dimension = "output_tokens"
+		case u.Cost > s.bound.Cost-s.used.Cost:
+			dimension = "cost"
+		}
+		if dimension != "" {
+			return ModelEvent{}, s.run.budgetFailure(ctx, s.turn, dimension)
+		}
+		s.used.InputTokens += u.InputTokens
+		s.used.OutputTokens += u.OutputTokens
+		s.used.Cost += u.Cost
 	}
 	if s.zone == s.run.request.SourceZone {
 		return event, nil
@@ -405,7 +517,15 @@ func (s *engineModelStream) Recv(ctx context.Context) (ModelEvent, error) {
 		return ModelEvent{}, err
 	}
 	if !v.Allows() {
-		return ModelEvent{}, ErrExecutionDenied
+		if v.RequiresApproval() {
+			v, err = s.run.resolveApproval(ctx, s.turn, manifest, v)
+			if err != nil {
+				return ModelEvent{}, err
+			}
+		}
+		if !v.Allows() {
+			return ModelEvent{}, ErrExecutionDenied
+		}
 	}
 	return event, nil
 }
@@ -417,22 +537,46 @@ func (s *engineModelStream) Close() error {
 }
 
 type engineToolHandler struct {
-	run     *engineRun
-	handler ToolHandler
+	closeOnce     sync.Once
+	closeErr      error
+	run           *engineRun
+	handler       ToolHandler
+	sideEffecting bool
 }
 
 func (h *engineToolHandler) Execute(ctx context.Context, call ToolInvocation) (ToolOutput, error) {
+	ctx = WithSandboxEventSink(ctx, h.run)
+	capability := SandboxCapability{}
+	if tool, ok := h.handler.(SandboxedTool); ok {
+		var err error
+		capability, err = tool.PrepareSandbox(ctx)
+		if err != nil {
+			return ToolOutput{}, err
+		}
+	}
+	if h.sideEffecting && !capability.Established {
+		return ToolOutput{}, ErrSandboxDenied
+	}
 	manifest, err := valueManifest(call.Call, h.run.request.ModelOutputClassification)
 	if err != nil {
 		return ToolOutput{}, err
 	}
-	v, _ := EvaluateExecutionPolicy(ctx, h.run.engine.ExecutionPolicy, ExecutionPolicyRequest{WorkloadID: call.WorkloadID, StepID: call.StepID, AttemptID: call.AttemptID, StepKind: StepTool, Autonomous: h.run.request.Autonomous, Target: ExecutionTarget{Kind: ExecutionTargetTool, Zone: h.run.request.SourceZone, ToolName: call.Call.Name}, Manifest: manifest})
+	v, _ := EvaluateExecutionPolicy(ctx, h.run.engine.ExecutionPolicy, ExecutionPolicyRequest{WorkloadID: call.WorkloadID, StepID: call.StepID, AttemptID: call.AttemptID, StepKind: StepTool, Autonomous: h.run.request.Autonomous, Target: ExecutionTarget{Kind: ExecutionTargetTool, Zone: h.run.request.SourceZone, ToolName: call.Call.Name, Sandbox: capability}, Manifest: manifest})
 	if ctx.Err() != nil {
 		return ToolOutput{}, ctx.Err()
 	}
 	if err := h.run.recordPolicy(ctx, call.Turn, manifest, v); err != nil {
 		h.run.stop(err)
 		return ToolOutput{}, err
+	}
+	if !v.Allows() {
+		if v.RequiresApproval() {
+			v, err = h.run.resolveApproval(ctx, call.Turn, manifest, v)
+			if err != nil {
+				h.run.stop(err)
+				return ToolOutput{}, err
+			}
+		}
 	}
 	if !v.Allows() {
 		h.run.stop(ErrExecutionDenied)
@@ -442,7 +586,30 @@ func (h *engineToolHandler) Execute(ctx context.Context, call ToolInvocation) (T
 	defer h.run.observe(ctx, RecordTool, "finished")
 	return h.handler.Execute(ctx, call)
 }
-func (h *engineToolHandler) Close(ctx context.Context) error { return h.handler.Close(ctx) }
+func (h *engineToolHandler) Close(ctx context.Context) error {
+	h.closeOnce.Do(func() {
+		err := closeEngineTool(WithSandboxEventSink(ctx, h.run), h.handler)
+		recordErr := h.run.record(ctx, ExecutionRecord{Stage: ExecutionCleanup, Cleanup: &CleanupRecord{Failed: err != nil, Resource: "tool"}})
+		h.closeErr = errors.Join(err, recordErr)
+	})
+	return h.closeErr
+}
+func closeEngineTool(ctx context.Context, handler ToolHandler) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = fmt.Errorf("%w: tool cleanup panicked", ErrLoopCleanup)
+		}
+	}()
+	return handler.Close(ctx)
+}
+func (s *engineRun) RecordSandboxEvent(ctx context.Context, event SandboxEvent) error {
+	if err := s.record(ctx, ExecutionRecord{Stage: ExecutionSandbox, Sandbox: &event}); err != nil {
+		s.stop(err)
+		return err
+	}
+	s.observe(ctx, RecordTool, "sandbox_"+event.Phase)
+	return nil
+}
 func valueManifest(value any, class Classification) (ContentManifest, error) {
 	encoded, err := json.Marshal(value)
 	if err != nil {

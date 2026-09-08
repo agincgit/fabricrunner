@@ -101,3 +101,23 @@ tagging the single-node engine does not satisfy this gate.
 - Supported side-effecting tools run in a sandbox by default and fail closed
   when the required sandbox is unavailable.
 - Claude Tool Runner parity tests pass for every capability an adapter declares.
+
+## Local Phase 1 evidence — 2026-09-08 UTC
+
+The work remains on `codex/phase-0-through-2`; no implementation push has occurred.
+
+| Gate | Evidence | Result |
+|---|---|---|
+| SQLite continuation without repeating a committed effect | `TestProcessRestartPreservesConfinedEffect` exits a child process at a checkpoint, reopens SQLite and resumes; the confined command's effect occurs once | Pass on Linux |
+| Unknown outcome handling | `TestResumeRefusesUnknownCallOutcome` | Pass |
+| Bounded personal-to-managed delegation | `TestPersonalModelDelegatesBoundedManagedReasoning` uses separate synthetic HTTP provider endpoints and feeds the normalized managed answer back | Pass; synthetic models |
+| Adapter conformance | Full shared Anthropic/OpenAI-compatible suites | Pass |
+| Tools, approvals, cancellation and compaction | 0011, 0013 and 0014 dated acceptance evidence | Pass locally |
+| Linux sandbox behavior | Outside-write, network, new-session child, and cancellation probes | Pass |
+| macOS sandbox behavior | Native test host unavailable; darwin/arm64 build only | Pending |
+
+The complete Phase 1 gate is still OPEN. Native macOS acceptance is required by
+0012. A real personal/cloud model deployment has not been exercised. Phase 2
+implementation remains after this gate, and its cloud-to-personal acceptance
+requires an actual coordinator host and personal-model endpoint. Those access
+details have been requested. No Phase 2 task is marked complete by this work.

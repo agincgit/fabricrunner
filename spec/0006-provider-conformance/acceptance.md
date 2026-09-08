@@ -40,6 +40,8 @@ Additional local verification on 2026-09-08 UTC for FR-PROVIDER-011:
 - `go test ./...`, `go build ./...`, and `go vet ./...` pass on Windows;
   `GOTOOLCHAIN=go1.25.13 go test ./... -race -count=1` passes on Ubuntu/WSL.
   Staticcheck v0.8.1 passes. No production behavior or signature changed.
+- [Published release preparation CI](https://github.com/agincgit/fabricrunner/actions/runs/34185189210)
+  passes, including the new hint regression tests and the full race suite.
 
 Local verification on 2026-09-07:
 

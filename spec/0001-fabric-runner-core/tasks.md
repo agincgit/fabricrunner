@@ -44,7 +44,9 @@
   as informational metadata, and assert in `providertest` that neither enables
   compaction or retries. These are the actual declaring types; earlier entries
   incorrectly named `ModelRequest` and `ModelEvent`.
-- [ ] Tag `v0.1.0` once the two items above have landed.
+- [x] Tag `v0.1.0` once the two items above have landed. Published on 2026-09-08
+  UTC at `579ded98dd18e85610b606b0d3406c144413e313`; see the
+  [release record](../../RELEASES.md).
 - [x] Note the patched-toolchain requirement in the README so the `go` directive
   is not mistaken for a misconfiguration.
 - [x] Add the telemetry and audit contract

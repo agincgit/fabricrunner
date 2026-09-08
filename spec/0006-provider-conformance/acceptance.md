@@ -29,6 +29,18 @@ The implementation is accepted when:
 
 ## Evidence
 
+Additional local verification on 2026-09-08 UTC for FR-PROVIDER-011:
+
+- `TestAutomaticCompactionCapabilityDoesNotEnableRunnerCompaction` preserves
+  the capability through discovery and proves that enabling it changes neither
+  the original request messages nor the real turn loop's call count or result.
+- `TestRetryableHintDoesNotRetryFailedTurn` proves that both hint values produce
+  one provider call, one stream close and the same failed-turn outcome despite
+  a budget allowing additional calls.
+- `go test ./...`, `go build ./...`, and `go vet ./...` pass on Windows;
+  `GOTOOLCHAIN=go1.25.13 go test ./... -race -count=1` passes on Ubuntu/WSL.
+  Staticcheck v0.8.1 passes. No production behavior or signature changed.
+
 Local verification on 2026-09-07:
 
 | Check | Evidence | Result |

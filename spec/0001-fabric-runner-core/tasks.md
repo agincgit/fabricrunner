@@ -40,9 +40,10 @@
 - [x] Add OpenAI-compatible adapter and conformance tests.
 - [x] Reword the `SECURITY.md` sandbox sentence to state planned rather than
   current behavior.
-- [ ] Document `ModelRequest.AutomaticCompaction` and `ModelEvent.Retryable` as
-  declared but not yet enforced, and assert in `providertest` that nothing
-  depends on either.
+- [x] Document `ModelCapabilities.AutomaticCompaction` and `ModelError.Retryable`
+  as informational metadata, and assert in `providertest` that neither enables
+  compaction or retries. These are the actual declaring types; earlier entries
+  incorrectly named `ModelRequest` and `ModelEvent`.
 - [ ] Tag `v0.1.0` once the two items above have landed.
 - [x] Note the patched-toolchain requirement in the README so the `go` directive
   is not mistaken for a misconfiguration.
@@ -62,15 +63,15 @@
 
 ## Phase 2: distributed workers
 
-- [ ] After the Phase 1 acceptance gate passes, including 0010, carve Phase 2
-  into its own numbered specification with requirements, plan, tasks, and
-  acceptance criteria; link it from this ledger, the core plan, and the spec
-  index. Preserve the outbound-worker gate without an inbound home port or
-  a VPN into the personal network.
+- [x] Carve the outbound personal-network model-worker slice into
+  [0016](../0016-outbound-personal-worker/spec.md), preserving the no-inbound-port
+  and no-VPN gate and explicitly sequencing implementation after 0011–0014 and
+  Phase 1 acceptance. Only spec creation moved earlier; implementation did not.
 - [ ] Define and version the protobuf worker protocol.
 - [ ] Implement enrollment, authentication, capabilities, and heartbeats.
 - [ ] Implement capacity, leasing, acknowledgement, cancellation, and drain.
-- [ ] Implement outbound personal-network worker connections.
+- [ ] Implement outbound personal-network model-worker connections and pass
+  [0016 acceptance](../0016-outbound-personal-worker/acceptance.md).
 - [ ] Implement cross-zone content manifests and egress decisions.
 - [ ] Implement reconnect, lease expiry, and uncertain-outcome reconciliation.
 - [ ] Pass the Phase 2 end-to-end acceptance scenario.

@@ -15,6 +15,9 @@ const (
 	ExecutionLoopEvent       ExecutionStage = "loop"
 	ExecutionFinished        ExecutionStage = "finished"
 	ExecutionSandbox         ExecutionStage = "sandbox"
+	ExecutionApproval        ExecutionStage = "approval"
+	ExecutionBudget          ExecutionStage = "budget"
+	ExecutionCleanup         ExecutionStage = "cleanup"
 )
 
 type RoutingRecord struct {
@@ -36,6 +39,9 @@ type ExecutionRecord struct {
 	Result         *LoopResult      `json:"result,omitempty"`
 	FailureCode    string           `json:"failure_code,omitempty"`
 	Sandbox        *SandboxEvent    `json:"sandbox,omitempty"`
+	Approval       *ApprovalRecord  `json:"approval,omitempty"`
+	Budget         *BudgetRecord    `json:"budget,omitempty"`
+	Cleanup        *CleanupRecord   `json:"cleanup,omitempty"`
 }
 
 func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
@@ -79,7 +85,7 @@ func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
 		return err
 	}
 	count := 0
-	for _, set := range []bool{r.Verdict != nil, r.Routing != nil, r.Loop != nil, r.Result != nil, r.Sandbox != nil} {
+	for _, set := range []bool{r.Verdict != nil, r.Routing != nil, r.Loop != nil, r.Result != nil, r.Sandbox != nil, r.Approval != nil, r.Budget != nil, r.Cleanup != nil} {
 		if set {
 			count++
 		}
@@ -88,6 +94,38 @@ func (p *WorkloadProjection) applyExecutionRecorded(event Event) error {
 		return errors.New("execution record must have exactly one payload")
 	}
 	switch r.Stage {
+	case ExecutionApproval:
+		if r.Approval == nil || r.Approval.Decision.Actor == "" {
+			return errors.New("approval actor required")
+		}
+		if err := r.Approval.Request.Scope.Validate(); err != nil {
+			return err
+		}
+		if r.Approval.Request.Scope.WorkloadID != p.Workload.ID || r.Approval.Request.Scope.StepID != r.StepID {
+			return errors.New("approval scope mismatch")
+		}
+		if err := r.Approval.Request.Manifest.Validate(); err != nil {
+			return err
+		}
+		if class, _ := r.Approval.Request.Manifest.EffectiveClassification(); class == ClassSecret {
+			return errors.New("secret approval forbidden")
+		}
+	case ExecutionBudget:
+		if r.Budget == nil {
+			return errors.New("budget payload required")
+		}
+		if err := r.Budget.Reserved.Validate(); err != nil {
+			return err
+		}
+		switch r.Budget.Dimension {
+		case "", "input_tokens", "output_tokens", "cost", "steps", "model_calls", "tool_calls", "wall_time":
+		default:
+			return errors.New("invalid budget dimension")
+		}
+	case ExecutionCleanup:
+		if r.Cleanup == nil || r.Cleanup.Resource == "" {
+			return errors.New("cleanup resource required")
+		}
 	case ExecutionSandbox:
 		if r.Sandbox == nil || r.Sandbox.Backend == "" {
 			return errors.New("sandbox record requires backend")

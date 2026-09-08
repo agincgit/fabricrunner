@@ -18,6 +18,9 @@ var ErrExecutionDenied = errors.New("execution not authorized")
 // Engine composes the public single-node contracts. Configure before calling
 // Run; dependencies must support concurrent calls if an Engine is shared.
 type Engine struct {
+	Approver         Approver
+	ApprovalTimeout  time.Duration
+	SpendEstimator   SpendEstimator
 	Store            EventStore
 	ExecutionPolicy  ExecutionPolicy
 	DataEgressPolicy DataEgressPolicy
@@ -131,7 +134,16 @@ func (e *Engine) Run(ctx context.Context, request EngineRequest) (projection *Wo
 	s.observe(ctx, RecordWorkload, "started")
 	s.observe(ctx, RecordStep, "started")
 	s.observe(ctx, RecordAttempt, "started")
-	result, runErr := e.Loop.Run(runCtx, loopRequest)
+	var result LoopResult
+	runErr := s.admit(runCtx)
+	if runErr == nil {
+		result, runErr = e.Loop.Run(runCtx, loopRequest)
+	} else {
+		runErr = errors.Join(runErr, s.cleanup(ctx))
+	}
+	if s.budgetDimension != "" {
+		result.BudgetExceeded = s.budgetDimension
+	}
 	if result.Stop == StopCancelled {
 		runErr = errors.Join(runErr, context.Canceled)
 	}
@@ -178,6 +190,8 @@ type engineDraft struct {
 	payload any
 }
 type engineRun struct {
+	reserved            SpendBound
+	budgetDimension     string
 	engine              *Engine
 	request             EngineRequest
 	aggregate           AggregateRef
@@ -284,6 +298,13 @@ func (s *engineRun) SelectTurn(ctx context.Context, turn TurnContext) (TurnSelec
 			return TurnSelection{}, err
 		}
 		candidate.ExecutionVerdict = v
+		if v.RequiresApproval() {
+			v, err = s.resolveApproval(ctx, turn.Turn, manifest, v)
+			if err != nil {
+				return TurnSelection{}, err
+			}
+			candidate.ExecutionVerdict = v
+		}
 		_ = policyErr // A failed evaluator supplies a persisted fail-closed verdict.
 		candidate.EgressVerdict = nil
 		if candidate.Zone != s.request.SourceZone {
@@ -295,6 +316,13 @@ func (s *engineRun) SelectTurn(ctx context.Context, turn TurnContext) (TurnSelec
 				return TurnSelection{}, err
 			}
 			candidate.EgressVerdict = &v
+			if v.RequiresApproval() {
+				v, err = s.resolveApproval(ctx, turn.Turn, manifest, v)
+				if err != nil {
+					return TurnSelection{}, err
+				}
+				candidate.EgressVerdict = &v
+			}
 		}
 		routing.Candidates = append(routing.Candidates, candidate)
 	}
@@ -315,7 +343,12 @@ func (s *engineRun) SelectTurn(ctx context.Context, turn TurnContext) (TurnSelec
 			if provider == nil {
 				return TurnSelection{}, fmt.Errorf("provider %q is unavailable", candidate.Model.Ref.Provider)
 			}
-			return TurnSelection{Provider: &engineProvider{run: s, provider: provider, zone: candidate.Zone, turn: turn.Turn}, Model: candidate.Model.Ref}, nil
+			modelRequest.Model = candidate.Model.Ref
+			bound, err := s.reserve(ctx, turn.Turn, modelRequest, candidate.Model)
+			if err != nil {
+				return TurnSelection{}, err
+			}
+			return TurnSelection{Provider: &engineProvider{run: s, provider: provider, zone: candidate.Zone, turn: turn.Turn, bound: bound}, Model: candidate.Model.Ref}, nil
 		}
 	}
 	return TurnSelection{}, errors.New("selected candidate unavailable")
@@ -347,6 +380,7 @@ func higherClassification(a, b Classification) Classification {
 }
 
 type engineProvider struct {
+	bound    SpendBound
 	run      *engineRun
 	provider Provider
 	zone     Zone
@@ -367,10 +401,12 @@ func (p *engineProvider) Stream(ctx context.Context, r ModelRequest) (ModelStrea
 	if stream == nil {
 		return nil, errors.New("provider returned nil stream")
 	}
-	return &engineModelStream{ModelStream: stream, run: p.run, ctx: ctx, zone: p.zone, turn: p.turn}, nil
+	return &engineModelStream{ModelStream: stream, run: p.run, ctx: ctx, zone: p.zone, turn: p.turn, bound: p.bound}, nil
 }
 
 type engineModelStream struct {
+	bound SpendBound
+	used  SpendBound
 	ModelStream
 	run  *engineRun
 	ctx  context.Context
@@ -384,6 +420,24 @@ func (s *engineModelStream) Recv(ctx context.Context) (ModelEvent, error) {
 	event, err := s.ModelStream.Recv(ctx)
 	if err != nil {
 		return event, err
+	}
+	if event.Usage != nil {
+		u := event.Usage
+		dimension := ""
+		switch {
+		case u.InputTokens > s.bound.InputTokens-s.used.InputTokens:
+			dimension = "input_tokens"
+		case u.OutputTokens > s.bound.OutputTokens-s.used.OutputTokens:
+			dimension = "output_tokens"
+		case u.Cost > s.bound.Cost-s.used.Cost:
+			dimension = "cost"
+		}
+		if dimension != "" {
+			return ModelEvent{}, s.run.budgetFailure(ctx, s.turn, dimension)
+		}
+		s.used.InputTokens += u.InputTokens
+		s.used.OutputTokens += u.OutputTokens
+		s.used.Cost += u.Cost
 	}
 	if s.zone == s.run.request.SourceZone {
 		return event, nil
@@ -405,7 +459,15 @@ func (s *engineModelStream) Recv(ctx context.Context) (ModelEvent, error) {
 		return ModelEvent{}, err
 	}
 	if !v.Allows() {
-		return ModelEvent{}, ErrExecutionDenied
+		if v.RequiresApproval() {
+			v, err = s.run.resolveApproval(ctx, s.turn, manifest, v)
+			if err != nil {
+				return ModelEvent{}, err
+			}
+		}
+		if !v.Allows() {
+			return ModelEvent{}, ErrExecutionDenied
+		}
 	}
 	return event, nil
 }
@@ -448,6 +510,15 @@ func (h *engineToolHandler) Execute(ctx context.Context, call ToolInvocation) (T
 		return ToolOutput{}, err
 	}
 	if !v.Allows() {
+		if v.RequiresApproval() {
+			v, err = h.run.resolveApproval(ctx, call.Turn, manifest, v)
+			if err != nil {
+				h.run.stop(err)
+				return ToolOutput{}, err
+			}
+		}
+	}
+	if !v.Allows() {
 		h.run.stop(ErrExecutionDenied)
 		return ToolOutput{}, ErrExecutionDenied
 	}
@@ -456,7 +527,9 @@ func (h *engineToolHandler) Execute(ctx context.Context, call ToolInvocation) (T
 	return h.handler.Execute(ctx, call)
 }
 func (h *engineToolHandler) Close(ctx context.Context) error {
-	return h.handler.Close(WithSandboxEventSink(ctx, h.run))
+	err := h.handler.Close(WithSandboxEventSink(ctx, h.run))
+	recordErr := h.run.record(ctx, ExecutionRecord{Stage: ExecutionCleanup, Cleanup: &CleanupRecord{Failed: err != nil, Resource: "tool"}})
+	return errors.Join(err, recordErr)
 }
 func (s *engineRun) RecordSandboxEvent(ctx context.Context, event SandboxEvent) error {
 	if err := s.record(ctx, ExecutionRecord{Stage: ExecutionSandbox, Sandbox: &event}); err != nil {

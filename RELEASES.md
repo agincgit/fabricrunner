@@ -14,12 +14,19 @@ the exact source commit; resolve it with `git rev-parse 'v0.1.0^{commit}'`.
 
 | Version | Commit | Published | MIT effective |
 |---|---|---|---|
-| v0.1.0 | [`v0.1.0^{commit}`](https://github.com/agincgit/fabricrunner/commit/v0.1.0) | 2026-09-08 | 2028-09-08 |
+| [v0.1.0](https://github.com/agincgit/fabricrunner/releases/tag/v0.1.0) | [`579ded9`](https://github.com/agincgit/fabricrunner/commit/579ded98dd18e85610b606b0d3406c144413e313) | 2026-09-08 | 2028-09-08 |
 
 The MIT effective date is exactly two years after publication; it is not reset
 by a later release.
 
 ## v0.1.0 scope
+
+The annotated tag is published and resolves to
+`579ded98dd18e85610b606b0d3406c144413e313`. The GitHub pre-release was published
+at 2026-09-08T03:58:56Z. The
+[release preparation CI](https://github.com/agincgit/fabricrunner/actions/runs/34185189210)
+passed formatting, build, vet, race tests, vulnerability scanning and secret
+scanning before tagging.
 
 - Specs 0002–0010 supply the implemented building blocks. Policy and routing
   decisions are committed before provider calls; replay reads durable history.

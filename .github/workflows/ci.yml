@@ -24,7 +24,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -37,6 +37,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y bubblewrap python3
+      - name: Permit bubblewrap user namespaces on the CI host
+        run: |
+          sudo install -m 0644 .github/bwrap.apparmor /etc/apparmor.d/fabricrunner-bwrap
+          sudo apparmor_parser -r /etc/apparmor.d/fabricrunner-bwrap
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./... -race -count=1

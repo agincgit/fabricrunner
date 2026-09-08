@@ -1,0 +1,8 @@
+# The ephemeral Ubuntu CI host must allow bubblewrap to create user namespaces.
+# Confinement is still enforced by bubblewrap's mount/PID/network namespaces.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile fabricrunner-bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+}

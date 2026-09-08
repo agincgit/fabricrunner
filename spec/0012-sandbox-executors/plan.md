@@ -1,5 +1,17 @@
 # Sandbox executors implementation plan
 
+## Ubuntu CI host prerequisite
+
+Ubuntu 24.04 restricts capabilities in unprivileged user namespaces unless the
+application has an appropriate AppArmor profile. The CI host installs a profile
+scoped to `/usr/bin/bwrap` that permits its user namespaces. Global restrictions
+remain enabled. The runtime still creates isolated mount, PID and network
+namespaces, and the behavioral confinement tests remain mandatory.
+
+This follows [Ubuntu's per-application user namespace guidance](https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces).
+The first published run of PR #15 failed closed during namespace setup;
+this host prerequisite addresses that failure without skipping sandbox tests.
+
 **Specification:** [spec.md](spec.md)
 
 **Status:** In Progress

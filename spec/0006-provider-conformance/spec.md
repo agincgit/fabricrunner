@@ -49,6 +49,12 @@ adapters are tested against one contract.
   credentials.
 - **FR-PROVIDER-010:** The provider conformance layer performs no routing,
   policy, retries, tool execution, message mutation, or automatic looping.
+- **FR-PROVIDER-011:** `ModelCapabilities.AutomaticCompaction` and
+  `ModelError.Retryable` are preserved as informational metadata. Neither
+  triggers runner compaction, retries, or rerouting. Regression tests exercise
+  the real turn loop with each hint enabled and disabled; behavior remains
+  unchanged apart from the descriptive metadata. This documents the v0.1.0
+  boundary pending explicit compaction and retry policy implementations.
 
 ## Contracts
 

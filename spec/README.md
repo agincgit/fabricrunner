@@ -55,3 +55,8 @@ replacement.
 | [0013](0013-approval-budgets-lifecycle/spec.md) | Approval gates, budgets, and lifecycle | Draft |
 | [0014](0014-context-compaction/spec.md) | Context accounting and auditable compaction | Draft |
 | [0015](0015-eval-harness/spec.md) | Eval harness | Draft |
+| [0016](0016-outbound-personal-worker/spec.md) | Outbound personal-network model worker | Draft |
+
+0016 is the first model-worker slice of Phase 2. Its implementation follows
+0011–0014 and the complete Phase 1 acceptance gate. Specification numbers do
+not set delivery order; 0015 remains later evaluation work.

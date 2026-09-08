@@ -6,6 +6,10 @@
 
 **Acceptance:** [acceptance.md](acceptance.md)
 
+- [x] Document informational capability/retry hints and verify they do not
+  trigger compaction or retries through the actual turn loop
+  (FR-PROVIDER-011; `providertest/hints_test.go`).
+
 - [x] Validate and clone provider identity, catalogs, descriptors,
   capabilities, deltas, and events (FR-PROVIDER-001 through FR-PROVIDER-006,
   FR-PROVIDER-008).

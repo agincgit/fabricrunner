@@ -70,6 +70,11 @@ Local verification on 2026-09-07:
 
 ## Phase 2 gate
 
+The outbound model-worker slice is specified by
+[0016](../0016-outbound-personal-worker/acceptance.md). Its acceptance evidence
+must include the cloud-to-personal deployment scenario; publishing the spec or
+tagging the single-node engine does not satisfy this gate.
+
 - A personal-network worker connects outbound, receives a lease, streams
   events, and completes an assignment using a model on the personal network
   without an inbound home network port or a VPN into the personal network.

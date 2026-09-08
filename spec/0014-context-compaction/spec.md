@@ -12,9 +12,11 @@ Supporting execution records: [plan](plan.md), [tasks](tasks.md), and
 
 ## Purpose
 
-`ModelRequest.AutomaticCompaction` is declared and never read. Setting it has
-no effect, which makes it a control that silently does nothing — harder to
-discover than an absent one. This specification gives it behavior.
+The existing `ModelCapabilities.AutomaticCompaction` is descriptive provider
+metadata and does not enable runner compaction. The earlier draft incorrectly
+identified it as a field on `ModelRequest`. This specification introduces an
+explicit request control, `ModelRequest.AutomaticCompaction`, alongside engine
+context accounting; a capability advertisement alone never enables compaction.
 
 Compaction must be auditable. A run that summarized away part of its history
 and cannot say what it replaced is not replayable in any meaningful sense.
@@ -23,8 +25,8 @@ and cannot say what it replaced is not replayable in any meaningful sense.
 
 - **FR-CTX-001:** The engine tracks context consumption against the model's
   declared window across a workload.
-- **FR-CTX-002:** When `AutomaticCompaction` is set and consumption crosses the
-  threshold, compaction runs. When it is unset, the workload fails on overflow
+- **FR-CTX-002:** When the request's `AutomaticCompaction` is set and consumption
+  crosses the threshold, compaction runs. When it is unset, the workload fails on overflow
   rather than compacting silently.
 - **FR-CTX-003:** Compaction records its inputs, the summary produced, the model
   that produced it, token counts, and the replaced event range — as specified in

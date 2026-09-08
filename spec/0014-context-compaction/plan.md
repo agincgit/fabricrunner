@@ -19,7 +19,9 @@ retrying, per FR-CTX-006.
 ## Delivery sequence
 
 1. Derive context accounting from the event stream.
-2. Give `AutomaticCompaction` behavior, and fail on overflow when unset.
+2. Introduce the explicit `ModelRequest.AutomaticCompaction` request control,
+   and fail on overflow when unset. The existing capability flag remains
+   descriptive metadata; record the new signature before implementation.
 3. Append the auditable compaction event.
 4. Make replay apply the recorded summary.
 5. Add classification exclusion and its recording.

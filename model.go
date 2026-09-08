@@ -242,8 +242,10 @@ type ModelCapabilities struct {
 	Streaming             bool
 	StructuredOutput      bool
 	PromptCaching         bool
-	AutomaticCompaction   bool
-	ReasoningSummaries    bool
+	// AutomaticCompaction describes a provider capability. It does not enable
+	// runner context accounting or compaction; those are planned under spec 0014.
+	AutomaticCompaction bool
+	ReasoningSummaries  bool
 }
 
 func (capabilities ModelCapabilities) Validate() error {
@@ -382,8 +384,10 @@ func (reason StopReason) Validate() error {
 }
 
 type ModelError struct {
-	Code          string
-	Message       string
+	Code    string
+	Message string
+	// Retryable is an informational provider hint. It does not authorize or
+	// trigger automatic retries or rerouting in the runner.
 	Retryable     bool
 	SafeToReroute bool
 }

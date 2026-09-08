@@ -15,5 +15,7 @@
 - [ ] Exclude above-classification content and record the exclusion
   (FR-CTX-005).
 - [ ] Terminate when compaction exceeds budget (FR-CTX-006).
-- [ ] Remove the unenforced-field doc comment added in Phase 1a.
+- [ ] Document the distinction between the informational provider capability
+  and the new request control; update Phase 1a regression coverage for the
+  explicitly enabled behavior without making the capability itself a control.
 - [ ] Capture acceptance evidence.

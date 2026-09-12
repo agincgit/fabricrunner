@@ -15,6 +15,7 @@ the exact source commit; resolve it with `git rev-parse 'v0.1.0^{commit}'`.
 | Version | Commit | Published | MIT effective |
 |---|---|---|---|
 | [v0.1.0](https://github.com/agincgit/fabricrunner/releases/tag/v0.1.0) | [`579ded9`](https://github.com/agincgit/fabricrunner/commit/579ded98dd18e85610b606b0d3406c144413e313) | 2026-09-08 | 2028-09-08 |
+| [v0.2.0](https://github.com/agincgit/fabricrunner/releases/tag/v0.2.0) | [`fc7f3d1`](https://github.com/agincgit/fabricrunner/commit/fc7f3d1eeb746ceb71353eaa7344fed01fb39fd5) | 2026-09-12 | 2028-09-12 |
 
 The MIT effective date is exactly two years after publication; it is not reset
 by a later release.
@@ -41,3 +42,32 @@ scanning before tagging.
 Consumers can pin `github.com/agincgit/fabricrunner@v0.1.0`. The annotated tag
 and GitHub release record the publication and MIT effective dates and the
 resolved commit. Never move a published release tag to different source.
+
+## v0.2.0 scope
+
+The annotated tag resolves to `fc7f3d1eeb746ceb71353eaa7344fed01fb39fd5`. Release preparation CI passed
+formatting, build, vet, race tests, vulnerability scanning and secret scanning
+on `ubuntu-24.04` before tagging.
+
+Added since v0.1.0:
+
+- Built-in rooted tools: read, write, edit, and command, with an argument
+  vector rather than a shell string.
+- Sandbox executors and a denying default, so absence of confinement refuses
+  execution rather than bypassing it.
+- Approval gates, budget admission checked before spend, cancellation, and
+  cleanup on every termination path.
+- Context accounting, auditable compaction, and restart continuation.
+
+Known limitation, stated plainly:
+
+- **Linux confinement has behavioral test evidence. The macOS Seatbelt profile
+  is experimental and its confinement tests do not currently pass natively.**
+  CI runs on Linux only and does not exercise the Seatbelt path. Do not rely on
+  macOS confinement in this release. Spec 0012 remains in progress.
+- The outbound personal-network model worker (0016) is still not included, and
+  neither the Phase 1 nor Phase 2 acceptance gate is complete.
+- The v1.0 license review remains a separate future prerequisite.
+
+Consumers can pin `github.com/agincgit/fabricrunner@v0.2.0`. The API remains
+unstable. Never move a published release tag to different source.

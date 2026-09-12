@@ -25,8 +25,8 @@ The Phase 1 gate remains open:
 
 Phase 2 implementation has not started because the Phase 1-first dependency
 still applies. A cloud coordinator host and personal-model endpoint are needed
-for the eventual real no-inbound-port/no-VPN acceptance scenario. The required
-macOS/deployment access details have been requested from the user.
+for the eventual real no-inbound-port/no-VPN acceptance scenario, along with a
+macOS host for native Seatbelt acceptance.
 
 Useful local checks:
 

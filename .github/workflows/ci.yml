@@ -46,3 +46,20 @@ jobs:
       - run: go test ./... -race -count=1
       - name: Check reachable vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  # macOS runs the same gates so the Seatbelt confinement path stops being
+  # invisible. It is deliberately NOT a required status check yet: the Seatbelt
+  # profile is experimental and its confinement tests do not currently pass, so
+  # requiring this job would block every pull request including the one that
+  # fixes it. Promote it to required once spec 0012 lands and this job is green.
+  build-macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.13'
+          cache: true
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./... -race -count=1

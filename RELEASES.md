@@ -15,7 +15,7 @@ the exact source commit; resolve it with `git rev-parse 'v0.1.0^{commit}'`.
 | Version | Commit | Published | MIT effective |
 |---|---|---|---|
 | [v0.1.0](https://github.com/agincgit/fabricrunner/releases/tag/v0.1.0) | [`579ded9`](https://github.com/agincgit/fabricrunner/commit/579ded98dd18e85610b606b0d3406c144413e313) | 2026-09-08 | 2028-09-08 |
-| [v0.2.0](https://github.com/agincgit/fabricrunner/releases/tag/v0.2.0) | [`fc7f3d1`](https://github.com/agincgit/fabricrunner/commit/fc7f3d1eeb746ceb71353eaa7344fed01fb39fd5) | 2026-09-12 | 2028-09-12 |
+| [v0.2.0](https://github.com/agincgit/fabricrunner/releases/tag/v0.2.0) | [`e432bfa`](https://github.com/agincgit/fabricrunner/commit/e432bfab57568297d437aa5a5f1b7838dc54ac97) | 2026-09-12 | 2028-09-12 |
 
 The MIT effective date is exactly two years after publication; it is not reset
 by a later release.
@@ -45,9 +45,12 @@ resolved commit. Never move a published release tag to different source.
 
 ## v0.2.0 scope
 
-The annotated tag resolves to `fc7f3d1eeb746ceb71353eaa7344fed01fb39fd5`. Release preparation CI passed
-formatting, build, vet, race tests, vulnerability scanning and secret scanning
-on `ubuntu-24.04` before tagging.
+The annotated tag is published and resolves to
+`e432bfab57568297d437aa5a5f1b7838dc54ac97`. The GitHub pre-release was
+published at 2026-09-12T17:04:15Z. The
+[release preparation CI](https://github.com/agincgit/fabricrunner/actions/runs/34707106600)
+passed formatting, build, vet, race tests, vulnerability scanning and secret
+scanning on `ubuntu-24.04` before tagging.
 
 Added since v0.1.0:
 

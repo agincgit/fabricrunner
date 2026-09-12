@@ -29,7 +29,7 @@ topology that permits worker-initiated connections to the coordinator and
 established return traffic, while denying new cloud-initiated connections into
 the worker/model network. A Linux network-namespace/firewall harness is suitable
 for CI; also record a run with a model on actual personal hardware before
-claiming the downstream deployment dependency is satisfied.
+claiming the deployment capability is satisfied.
 
 Record topology, firewall/listener checks, protocol and software versions,
 redacted configuration, assignment and attempt IDs, policy/lease/event records,

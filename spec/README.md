@@ -56,6 +56,10 @@ replacement.
 | [0014](0014-context-compaction/spec.md) | Context accounting and auditable compaction | Implemented |
 | [0015](0015-eval-harness/spec.md) | Eval harness | Draft |
 | [0016](0016-outbound-personal-worker/spec.md) | Outbound personal-network model worker | Draft |
+| [0017](0017-postgres-event-store/spec.md) | Postgres event store | Draft |
+| [0018](0018-caller-intent/spec.md) | Caller intent | Draft |
+| [0019](0019-provider-extension-forwarding/spec.md) | Provider extension forwarding | Draft |
+| [0020](0020-typed-no-route-error/spec.md) | Typed no-route error | Draft |
 
 0016 is the first model-worker slice of Phase 2. Its implementation follows
 0011–0014 and the complete Phase 1 acceptance gate. Specification numbers do

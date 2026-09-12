@@ -40,9 +40,9 @@ a managed model and receives the result in one replayable workload.
 Phase 1 must pass its acceptance gate before Phase 2 begins, including the
 execution engine composition in [0010](../0010-execution-engine/spec.md).
 The outbound personal-network model-worker slice is now specified in
-[0016](../0016-outbound-personal-worker/spec.md). The request to name this
-downstream dependency supersedes the earlier plan to wait until Phase 1 was
-complete before writing its numbered spec. Implementation sequencing is
+[0016](../0016-outbound-personal-worker/spec.md). Naming this capability now
+supersedes the earlier plan to wait until Phase 1 was complete before writing
+its numbered spec. Implementation sequencing is
 unchanged: 0011–0014 and the complete Phase 1 gate precede 0016. In particular,
 0013 supplies reservations, approval outcomes, and lifecycle controls. Other
 distributed-worker slices remain tracked here until separately specified.

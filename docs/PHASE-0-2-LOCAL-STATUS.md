@@ -3,11 +3,10 @@
 Base: `06fb121`. Branch: `codex/phase-0-through-2`.
 
 The original publication rule kept development commits local until Phase 2
-acceptance. On 2026-09-08 the user superseded that rule: publish the current work
-and merge to main as `na-sa`. Native macOS testing will be performed downstream
-after the merge, with a report returned to this project. That report remains
-pending; publication does not complete the acceptance gate. Do not move the
-published `v0.1.0` tag.
+acceptance. On 2026-09-08 that rule was superseded: publish the current work and
+merge to main. Native macOS verification is performed separately after the
+merge and remains pending; publication does not complete the acceptance gate.
+Do not move the published `v0.1.0` tag.
 
 Phase 0 acceptance remains recorded. The v1.0 license review is still a separate
 future release prerequisite; implementation cannot substitute for that review.

@@ -14,7 +14,7 @@ no separate execution path that could skip a control.
 Re-scoring uses replay. Because replay contacts no provider and executes no
 tool, a scorer can be changed and the whole suite re-scored against recorded
 streams at no model cost. This is the property that justifies building the
-harness here rather than downstream.
+harness here rather than in each caller.
 
 The report is a versioned struct with a stable field order, serialized so two
 runs diff cleanly.

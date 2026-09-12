@@ -28,7 +28,7 @@ calls an operator-configured personal-network model, and returns normalized
 events and a durable terminal result over that connection.
 
 This is the concrete outbound-worker slice of 0001's Phase 2 gate. It is a
-planned dependency for downstream cloud workloads, not a capability of v0.1.0.
+planned capability, not a capability of v0.1.0.
 Creating this specification now does not advance Phase 2 implementation ahead
 of the previously agreed Phase 1-first sequence.
 
@@ -103,6 +103,14 @@ of the previously agreed Phase 1-first sequence.
   effects. The audit comes from the event stores alone. Observer records cover
   enrollment, connection, lease, cancellation, drain and reconciliation while
   preserving 0009's classification and isolation guarantees.
+- **FR-WORK-014:** A provider serves every model that names it, and the model to
+  use is read from `request.Model`. `Providers` is a map fixed at startup and the
+  engine resolves a provider by the name on the selected candidate, so a worker
+  bridge must be registered once per worker name, before any of its models are
+  known. A provider bound to a single model at construction silently answers
+  every turn with that model and ignores the request, which a worker serving two
+  models makes indistinguishable from correct routing.
+
 - **FR-WORK-013:** Supply a runnable coordinator/worker example and deployment
   instructions for a cloud coordinator and a personal-network model. Document
   configuration, credential provisioning/rotation/revocation, outbound network

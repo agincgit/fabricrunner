@@ -65,6 +65,11 @@ adapters are tested against one contract.
 - `providertest.Run` executes the same observable suite against an adapter
   fixture supplied by the adapter package.
 
+- **FR-CONF-MODEL:** A provider serves every model that names it, and the model
+  is on the request. An adapter must read `request.Model` rather than binding a
+  model at construction. The conformance suite fails an adapter that returns a
+  fixed model regardless of the request.
+
 ## Non-goals
 
 - Anthropic or OpenAI wire translation

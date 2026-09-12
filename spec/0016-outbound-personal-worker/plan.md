@@ -7,8 +7,8 @@
 ## Delivery position
 
 The order remains Phase 1 first, then this first model-worker slice of Phase 2.
-This specification is created now to name the downstream dependency and define
-its acceptance boundary. It is not implementation evidence or a delivery date.
+This specification is created now to name the capability and define its
+acceptance boundary. It is not implementation evidence or a delivery date.
 
 | Predecessor | Relationship to 0016 |
 |---|---|
@@ -20,8 +20,8 @@ its acceptance boundary. It is not implementation evidence or a delivery date.
 | Phase 1 acceptance | Must also prove restart continuation and the complete single-node scenario |
 | 0015 eval harness | Later evaluation work; its number does not make it a prerequisite |
 
-There is no committed calendar ETA. A downstream product needing cloud-to-home
-model service before this gate passes must supply an interim connection path.
+There is no committed calendar ETA. Any caller needing cloud-to-home model
+service before this gate passes must supply its own interim connection path.
 Keep that integration behind the provider boundary so the worker bridge can
 replace it. The no-inbound-port/no-VPN requirement remains committed; a tag of
 the single-node engine is not evidence that the worker path exists.
